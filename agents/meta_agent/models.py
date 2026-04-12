@@ -1,7 +1,7 @@
 from __future__ import annotations
 from typing import Optional, List
 from datetime import datetime
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, Field, field_validator
 import uuid
 
 
@@ -98,7 +98,7 @@ class AuditEntry(BaseModel):
     details: dict = {}
     tokens_used: int = 0
     success: bool = True
-    logged_at: str = ""
+    logged_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
     @field_validator("logged_at", mode="before")
     @classmethod
@@ -120,7 +120,7 @@ class FounderReport(BaseModel):
     total_tokens_used: int = 0
     errors: List[str] = []
     rollback_command: str = ""
-    completed_at: str = ""
+    completed_at: str = Field(default_factory=lambda: datetime.utcnow().isoformat())
 
     @field_validator("completed_at", mode="before")
     @classmethod

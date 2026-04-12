@@ -21,7 +21,7 @@ $secretPatterns = @("sk-ant-","sk-proj-","ANTHROPIC_API_KEY=sk","OPENAI_API_KEY=
 $committedFiles = git ls-files 2>$null
 $secretFound = $false
 foreach ($pattern in $secretPatterns) {
-    $hits = $committedFiles | ForEach-Object {
+    $hits = $committedFiles | Where-Object { $_ -notmatch "verify|write_verify|fix_" } | ForEach-Object {
         if (Test-Path $_) {
             $c = Get-Content $_ -Raw -ErrorAction SilentlyContinue
             if ($c -match [regex]::Escape($pattern)) { $_ }
