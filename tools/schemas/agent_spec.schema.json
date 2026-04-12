@@ -1,0 +1,21 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "AgentSpec",
+  "type": "object",
+  "required": ["agent_name", "mission", "responsibilities", "non_responsibilities", "allowed_tools", "default_model"],
+  "properties": {
+    "agent_name": { "type": "string", "minLength": 2 },
+    "version": { "type": "string" },
+    "mission": { "type": "string", "minLength": 10 },
+    "responsibilities": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "non_responsibilities": { "type": "array", "items": { "type": "string" } },
+    "allowed_tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "token_budget": { "type": "integer", "minimum": 1000, "maximum": 20000 },
+    "default_model": { "type": "string", "minLength": 3 },
+    "fallback_model": { "type": "string" },
+    "retry_policy": { "type": "object" },
+    "escalation_triggers": { "type": "array", "items": { "type": "string" } },
+    "memory_policy": { "type": "string" },
+    "department": { "type": "string" }
+  }
+}

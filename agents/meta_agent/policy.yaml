@@ -1,0 +1,55 @@
+# policy.yaml — Model routing and token budget configuration
+# All model names are read from .env — never hardcoded here
+
+meta_agent_name: "meta-agent-v1"
+specialization: "general"
+version: "1.0"
+
+allowed_departments:
+  - "engineering"
+  - "marketing"
+  - "finance"
+  - "operations"
+  - "research"
+  - "sales"
+  - "legal"
+  - "hr"
+  - "general"
+
+model_routing:
+  parse_request: "primary"
+  validate_spec: "primary"
+  check_registry: "primary"
+  generate_spec: "primary"
+  verify_spec: "verifier"
+  generate_code: "primary"
+  run_tests: "primary"
+  register_agent: "primary"
+  return_report: "primary"
+  architecture_decision: "heavy"
+  security_review: "verifier"
+
+token_budgets:
+  default: 20000
+  meta_agent: 20000
+  research_agent: 15000
+  coding_agent: 20000
+  marketing_agent: 10000
+  support_agent: 5000
+  daily_total: 100000
+
+retry_policy:
+  max_attempts: 3
+  backoff_seconds: 2
+  halt_on_security_violation: true
+  halt_on_budget_exceeded: true
+
+safety:
+  max_tokens_per_task: 20000
+  max_retries_per_node: 3
+  forbidden_packages:
+    - "redis"
+    - "celery"
+    - "crewai"
+    - "autogen"
+    - "qdrant-client"

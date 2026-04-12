@@ -1,0 +1,16 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "FounderReport",
+  "type": "object",
+  "required": ["task_id", "agent_name", "status", "summary", "rollback_command"],
+  "properties": {
+    "task_id": { "type": "string" },
+    "agent_name": { "type": "string" },
+    "status": { "type": "string", "enum": ["SUCCESS", "PARTIAL", "FAILED"] },
+    "summary": { "type": "string" },
+    "total_tokens_used": { "type": "integer" },
+    "errors": { "type": "array", "items": { "type": "string" } },
+    "rollback_command": { "type": "string" },
+    "completed_at": { "type": "string" }
+  }
+}

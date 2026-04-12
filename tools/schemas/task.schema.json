@@ -1,0 +1,15 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "TaskSpec",
+  "type": "object",
+  "required": ["agent_name", "agent_role", "agent_mission", "allowed_tools", "founder_request"],
+  "properties": {
+    "agent_name": { "type": "string", "minLength": 2, "maxLength": 100 },
+    "agent_role": { "type": "string", "minLength": 5 },
+    "agent_mission": { "type": "string", "minLength": 10 },
+    "allowed_tools": { "type": "array", "items": { "type": "string" }, "minItems": 1 },
+    "token_budget": { "type": "integer", "minimum": 1000, "maximum": 20000 },
+    "department": { "type": "string" },
+    "founder_request": { "type": "string", "minLength": 10 }
+  }
+}
