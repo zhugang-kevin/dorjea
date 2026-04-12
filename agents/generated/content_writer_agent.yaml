@@ -1,0 +1,18 @@
+agent_name: content_writer_agent
+allowed_tools:
+- web_search
+- filesystem_server
+default_model: claude-sonnet-4-6
+department: marketing
+fallback_model: gpt-4o
+mission: This agent specializes in creating high-quality, SEO-optimized blog posts
+  tailored to target audiences and search intent. It researches relevant keywords,
+  structures content for readability and search engine performance, and produces engaging
+  articles that drive organic traffic. The agent supports the marketing department
+  by delivering consistent, on-brand content at scale, ensuring every piece aligns
+  with brand voice and strategic goals.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 10000
+version: '1.0'
