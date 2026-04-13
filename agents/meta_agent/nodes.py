@@ -26,6 +26,9 @@ from agents.meta_agent.registry import agent_exists, register_agent as db_regist
 from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
+from agents.meta_agent.manifest_manager import save_manifest
+from agents.meta_agent.architecture_validator import run_full_architecture_validation
+from agents.meta_agent.reproducibility import save_execution_record
 from agents.meta_agent.prompts import (
     GENERATE_SPEC_SYSTEM,
     PARSE_REQUEST_SYSTEM,
@@ -251,10 +254,21 @@ def generate_spec(state: MetaAgentState) -> dict:
     if not task_spec:
         return {"current_error": "No TaskSpec in state.", "should_stop": True}
 
+    user_msg = build_generate_spec_user_message(task_spec, [])
     result = claude.call(
-        build_generate_spec_user_message(task_spec, []),
+        user_msg,
         system=GENERATE_SPEC_SYSTEM,
         max_tokens=2000,
+    )
+    save_execution_record(
+        task_id=state.get("task_id", "unknown"),
+        agent_id=task_spec.agent_name,
+        node_name="generate_spec",
+        model=claude.model,
+        system_prompt=GENERATE_SPEC_SYSTEM,
+        user_prompt=user_msg,
+        output=result.get("text", ""),
+        tokens_used=result.get("total_tokens", 0),
     )
     if result["error"]:
         _audit(state, "generate_spec", f"Claude error: {result['error']}", success=False)
@@ -582,8 +596,8 @@ def test_not_empty():
 
 def register_agent(state: MetaAgentState) -> dict:
     """
-    Node 8: Register the verified and tested agent in the database.
-    Saves the agent spec YAML to agents/specs/ folder.
+    Node 8: Run architecture validation then register the agent in the database.
+    Validates spec, generated files, and manifest before registration.
     """
     if state.get("should_stop"):
         return {}
@@ -593,9 +607,22 @@ def register_agent(state: MetaAgentState) -> dict:
     if not agent_spec:
         return {"current_error": "No AgentSpec to register.", "should_stop": True}
 
+    arch_ok, arch_errors = run_full_architecture_validation(agent_spec)
+    if not arch_ok:
+        error_msg = "Architecture validation failed: " + " | ".join(arch_errors)
+        _audit(state, "register_agent", error_msg, success=False)
+        return {
+            "current_error": error_msg,
+            "should_stop": True,
+        }
+    _audit(state, "register_agent", "Architecture validation passed")
+
     SPECS_DIR.mkdir(parents=True, exist_ok=True)
     spec_path = SPECS_DIR / f"{agent_spec.agent_name}.yaml"
     spec_path.write_text(spec_yaml or "", encoding="utf-8")
+
+    manifest_path = save_manifest(agent_spec)
+    _audit(state, "register_agent", f"Manifest saved: {manifest_path}")
 
     result = db_register_agent(
         name=agent_spec.agent_name,
