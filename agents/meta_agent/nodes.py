@@ -24,6 +24,7 @@ from agents.meta_agent.models import (
 from agents.meta_agent.audit_logger import write_audit_entry
 from agents.meta_agent.registry import agent_exists, register_agent as db_register_agent
 from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
+from agents.runtime.model_router import call_with_fallback as routed_call
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from agents.meta_agent.manifest_manager import save_manifest

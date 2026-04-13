@@ -83,10 +83,12 @@ class OpenAIClient:
 
     def _get_client(self) -> OpenAI:
         """Create client fresh each call to always use current env vars."""
+        import httpx
         api_key = os.getenv("OPENAI_API_KEY", "")
         if not api_key:
             raise ValueError("OPENAI_API_KEY not set in environment.")
-        return OpenAI(api_key=api_key)
+        base_url = os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")
+        return OpenAI(api_key=api_key, base_url=base_url, http_client=httpx.Client(proxy='socks5://127.0.0.1:1080'))
 
     def call(
         self,
@@ -123,3 +125,34 @@ class OpenAIClient:
         except Exception as e:
             return {"text": "", "input_tokens": 0, "output_tokens": 0,
                     "total_tokens": 0, "error": f"OpenAI API error: {str(e)}"}
+
+class DeepSeekClient:
+    def __init__(self) -> None:
+        self.model = os.getenv('DEEPSEEK_MODEL', 'deepseek-chat')
+        self.base_url = os.getenv('DEEPSEEK_BASE_URL', 'https://api.deepseek.com')
+        self.max_tokens = 4096
+
+    def _get_client(self):
+        api_key = os.getenv('DEEPSEEK_API_KEY', '')
+        if not api_key:
+            raise ValueError('DEEPSEEK_API_KEY not set in environment.')
+        return OpenAI(api_key=api_key, base_url=self.base_url)
+
+    def call(self, prompt, system='', max_tokens=None):
+        try:
+            client = self._get_client()
+            messages = []
+            if system:
+                messages.append({'role': 'system', 'content': system})
+            messages.append({'role': 'user', 'content': prompt})
+            response = client.chat.completions.create(
+                model=self.model,
+                max_tokens=max_tokens or self.max_tokens,
+                messages=messages,
+            )
+            usage = response.usage
+            return {'text': response.choices[0].message.content, 'input_tokens': usage.prompt_tokens, 'output_tokens': usage.completion_tokens, 'total_tokens': usage.total_tokens, 'error': None}
+        except ValueError as e:
+            return {'text': '', 'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0, 'error': str(e)}
+        except Exception as e:
+            return {'text': '', 'input_tokens': 0, 'output_tokens': 0, 'total_tokens': 0, 'error': 'DeepSeek API error: ' + str(e)}
