@@ -24,6 +24,8 @@ from agents.meta_agent.models import (
 from agents.meta_agent.audit_logger import write_audit_entry
 from agents.meta_agent.registry import agent_exists, register_agent as db_register_agent
 from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
+from self_defence.injection_detector import is_safe
+from self_defence.rate_limiter import rate_limiter
 
 load_dotenv()
 
@@ -74,6 +76,21 @@ def parse_request(state: MetaAgentState) -> dict:
         _audit(state, "parse_request", "Empty founder request", success=False)
         return {
             "current_error": "Founder request is empty.",
+            "should_stop": True,
+        }
+
+    safe, reason = is_safe(founder_request, agent_id=state.get("task_id", "system"))
+    if not safe:
+        _audit(state, "parse_request", "Injection blocked: " + reason, success=False)
+        return {
+            "current_error": "Request blocked by security filter: " + reason,
+            "should_stop": True,
+        }
+
+    if not rate_limiter.wait_if_needed("meta_agent", timeout=3.0):
+        _audit(state, "parse_request", "Rate limit exceeded", success=False)
+        return {
+            "current_error": "Rate limit exceeded. Please wait before submitting again.",
             "should_stop": True,
         }
 
