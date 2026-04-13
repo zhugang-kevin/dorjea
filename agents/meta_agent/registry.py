@@ -14,20 +14,48 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DB_PATH = os.getenv("DATABASE_URL", "sqlite:///./memory/aifactory.db")
-if DB_PATH.startswith("sqlite:///"):
-    DB_PATH = DB_PATH.replace("sqlite:///", "")
+DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./memory/aifactory.db")
+USE_POSTGRES = DATABASE_URL.startswith("postgresql://")
+
+if not USE_POSTGRES:
+    DB_PATH = DATABASE_URL.replace("sqlite:///", "")
+else:
+    DB_PATH = None
 
 
-def _get_connection() -> sqlite3.Connection:
+def _get_connection():
     """
-    Return a SQLite connection with row factory set.
-    Creates the database file if it does not exist.
+    Return a database connection — SQLite for dev, PostgreSQL for prod.
     """
-    Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if USE_POSTGRES:
+        import psycopg2
+        import psycopg2.extras
+        conn = psycopg2.connect(DATABASE_URL)
+        return conn
+    else:
+        Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+        conn = sqlite3.connect(DB_PATH)
+        conn.row_factory = sqlite3.Row
+        return conn
+
+
+def _fetchall(cursor):
+    """Return rows as list of dicts for both SQLite and PostgreSQL."""
+    if USE_POSTGRES:
+        cols = [d[0] for d in cursor.description]
+        return [dict(zip(cols, row)) for row in cursor.fetchall()]
+    return [dict(row) for row in cursor.fetchall()]
+
+
+def _fetchone(cursor):
+    """Return one row as dict for both SQLite and PostgreSQL."""
+    row = cursor.fetchone()
+    if row is None:
+        return None
+    if USE_POSTGRES:
+        cols = [d[0] for d in cursor.description]
+        return dict(zip(cols, row))
+    return dict(row)
 
 
 def agent_exists(agent_name: str) -> bool:
@@ -117,9 +145,9 @@ def list_agents(status: str = "active") -> list[dict]:
             "SELECT * FROM agents WHERE status = ? ORDER BY created_at DESC",
             (status,)
         )
-        rows = cursor.fetchall()
+        rows = _fetchall(cursor)
         conn.close()
-        return [dict(row) for row in rows]
+        return rows
     except Exception:
         return []
 
