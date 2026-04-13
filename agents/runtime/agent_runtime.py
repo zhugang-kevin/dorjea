@@ -9,6 +9,7 @@ from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from self_governance.policy_engine import policy_engine
 from agents.runtime.capability_sandbox import create_sandbox
+from agents.runtime.error_recovery import classify_error, execute_recovery, should_escalate_to_founder
 
 claude = ClaudeClient()
 
@@ -95,14 +96,23 @@ class AgentRuntime:
         result = claude.call(task_instruction, system=system_prompt, max_tokens=token_budget // 4)
 
         if result["error"]:
+            recovery = execute_recovery(
+                agent_id=agent_name,
+                task_id=task_id,
+                error_message=result["error"],
+                retry_count=0,
+            )
             self._log(agent_name, task_id, "TASK_FAILED",
-                     {"error": result["error"]}, success=False)
+                     {"error": result["error"],
+                      "recovery_action": recovery["action"]}, success=False)
             return {
                 "status": "FAILED",
                 "error": result["error"],
                 "task_id": task_id,
                 "agent_name": agent_name,
                 "tokens_used": 0,
+                "recovery_action": recovery["action"],
+                "escalate_to_founder": recovery["should_escalate"],
             }
 
         track_tokens(
