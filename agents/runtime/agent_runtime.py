@@ -8,6 +8,7 @@ from agents.runtime.ai_clients import ClaudeClient
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from self_governance.policy_engine import policy_engine
+from agents.runtime.capability_sandbox import create_sandbox
 
 claude = ClaudeClient()
 
@@ -53,7 +54,22 @@ class AgentRuntime:
                 "task_id": task_id,
             }
 
-        token_budget = agent.get("token_budget", 20000)
+        sandbox = create_sandbox(agent_name)
+        limits = sandbox.get_resource_limits()
+        token_budget = limits.get("max_tokens_per_task", agent.get("token_budget", 20000))
+
+        if sandbox.can_create_agents():
+            pass
+        if sandbox.can_modify_core():
+            self._log(agent_name, task_id, "SANDBOX_VIOLATION",
+                     {"reason": "Agent attempted core modification"}, success=False)
+            return {
+                "status": "FAILED",
+                "error": "Sandbox violation: agent cannot modify core system.",
+                "task_id": task_id,
+            }
+
+        token_budget = agent.get("token_budget", token_budget)
         if not is_within_budget(0, budget=token_budget):
             return {
                 "status": "FAILED",
