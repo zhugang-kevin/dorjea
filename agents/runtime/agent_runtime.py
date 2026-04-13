@@ -10,6 +10,7 @@ from self_token.budget_manager import track_tokens, is_within_budget
 from self_governance.policy_engine import policy_engine
 from agents.runtime.capability_sandbox import create_sandbox
 from agents.runtime.error_recovery import classify_error, execute_recovery, should_escalate_to_founder
+from self_monitoring.agent_performance import record_task_result
 
 claude = ClaudeClient()
 
@@ -123,6 +124,15 @@ class AgentRuntime:
             completion_tokens=result["output_tokens"],
         )
 
+        elapsed = (datetime.utcnow() - datetime.fromisoformat(
+            datetime.utcnow().isoformat())).total_seconds()
+        record_task_result(
+            agent_name=agent_name,
+            task_id=task_id,
+            success=True,
+            tokens_used=result["total_tokens"],
+            elapsed_seconds=0,
+        )
         self._log(agent_name, task_id, "TASK_COMPLETED",
                  {"tokens": result["total_tokens"], "output_preview": result["text"][:200]})
 

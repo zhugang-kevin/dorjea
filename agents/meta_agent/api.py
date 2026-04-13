@@ -13,6 +13,7 @@ from self_defence.rate_limiter import rate_limiter
 from self_monitoring.health_monitor import get_factory_dashboard
 from self_token.budget_manager import get_daily_usage, is_within_daily_budget
 from self_monitoring.drift_detector import get_drift_status
+from self_monitoring.agent_performance import get_performance_summary
 from agents.runtime.agent_runtime import runtime
 from agents.meta_agent.task_gateway import gateway
 
@@ -176,3 +177,7 @@ def run_agent_task(agent_name: str, body: RunTaskRequest) -> dict:
     if result["status"] == "FAILED":
         raise HTTPException(status_code=400, detail=result.get("error", "Task failed"))
     return result
+
+@app.get("/performance")
+def get_performance() -> dict:
+    return get_performance_summary()
