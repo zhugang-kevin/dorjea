@@ -18,3 +18,13 @@ if (Test-Path ".env") {
     }
 }
 Write-Host "Environment ready. Safe to proceed." -ForegroundColor Green
+
+# Helper function for local API calls - always bypasses proxy
+function Invoke-LocalAPI {
+    param($Uri, $Method = "GET", $Body = $null, $ContentType = "application/json")
+    if ($Body) {
+        return Invoke-RestMethod -Uri $Uri -Method $Method -Body $Body -ContentType $ContentType -NoProxy
+    }
+    return Invoke-RestMethod -Uri $Uri -Method $Method -NoProxy
+}
+Write-Host "Local API helper loaded. Use Invoke-LocalAPI instead of Invoke-RestMethod." -ForegroundColor Cyan
