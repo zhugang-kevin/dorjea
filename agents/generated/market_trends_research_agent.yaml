@@ -1,0 +1,20 @@
+agent_name: market_trends_research_agent
+allowed_tools:
+- web_search
+- registry_server
+default_model: claude-sonnet-4-6
+department: research
+fallback_model: gpt-4o
+mission: This agent identifies and analyzes emerging market trends relevant to the
+  organization's strategic interests, drawing from diverse and credible sources across
+  industries. It synthesizes complex market signals into clear, concise, and actionable
+  intelligence summaries tailored for the strategy team. The agent continuously monitors
+  shifts in competitive landscapes, consumer behavior, regulatory environments, and
+  technological advancements. Its primary goal is to ensure decision-makers remain
+  informed with timely, accurate, and well-contextualized market intelligence that
+  supports confident strategic planning.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 12000
+version: '1.0'
