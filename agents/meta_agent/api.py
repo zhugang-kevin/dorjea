@@ -13,6 +13,7 @@ from self_defence.rate_limiter import rate_limiter
 from self_monitoring.health_monitor import get_factory_dashboard
 from self_token.budget_manager import get_daily_usage, is_within_daily_budget
 from agents.runtime.agent_runtime import runtime
+from agents.meta_agent.task_gateway import gateway
 
 load_dotenv()
 
@@ -64,17 +65,13 @@ def create_agent(body: CreateAgentRequest) -> CreateAgentResponse:
     if not body.request or len(body.request.strip()) < 10:
         raise HTTPException(status_code=400, detail="Request must be at least 10 characters.")
 
-    if not rate_limiter.is_allowed("founder"):
-        raise HTTPException(status_code=429, detail="Rate limit exceeded. Please wait.")
+    task_envelope, errors = gateway.validate_and_admit(
+        body.request, source="founder"
+    )
+    if errors:
+        raise HTTPException(status_code=400, detail=" | ".join(errors))
 
-    safe, reason = is_safe(body.request, agent_id="founder")
-    if not safe:
-        raise HTTPException(status_code=400, detail="Request blocked: " + reason)
-
-    if not is_within_daily_budget():
-        raise HTTPException(status_code=429, detail="Daily token budget exceeded.")
-
-    task_id = str(uuid.uuid4())
+    task_id = task_envelope["task_id"]
     session_id = str(uuid.uuid4())
 
     initial_state = {
