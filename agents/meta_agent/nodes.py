@@ -26,6 +26,13 @@ from agents.meta_agent.registry import agent_exists, register_agent as db_regist
 from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
+from agents.meta_agent.prompts import (
+    GENERATE_SPEC_SYSTEM,
+    PARSE_REQUEST_SYSTEM,
+    APPROVED_TOOLS,
+    build_generate_spec_user_message,
+    build_parse_request_user_message,
+)
 from self_governance.policy_engine import policy_engine
 from self_defence.rate_limiter import rate_limiter
 
@@ -244,39 +251,11 @@ def generate_spec(state: MetaAgentState) -> dict:
     if not task_spec:
         return {"current_error": "No TaskSpec in state.", "should_stop": True}
 
-    system = (
-        "You are an expert AI agent architect. "
-        "Generate a complete, detailed agent specification. "
-        "Respond with valid JSON only. No explanation. No markdown."
+    result = claude.call(
+        build_generate_spec_user_message(task_spec, []),
+        system=GENERATE_SPEC_SYSTEM,
+        max_tokens=2000,
     )
-    prompt = f"""
-Generate a complete AgentSpec JSON for this agent:
-
-Agent Name: {task_spec.agent_name}
-Role: {task_spec.agent_role}
-Mission: {task_spec.agent_mission}
-Department: {task_spec.department}
-Allowed Tools: {task_spec.allowed_tools}
-Token Budget: {task_spec.token_budget}
-
-Return JSON with these exact fields:
-- agent_name: string
-- version: "1.0"
-- mission: detailed mission statement (3-5 sentences)
-- responsibilities: list of 5-8 specific responsibilities
-- non_responsibilities: list of 3-5 things this agent must NOT do
-- allowed_tools: list of approved tools
-- token_budget: integer
-- default_model: "{os.getenv('PRIMARY_MODEL', 'claude-sonnet-4-6')}"
-- fallback_model: "{os.getenv('VERIFIER_MODEL', 'gpt-4o')}"
-- retry_policy: {{"max_attempts": 3, "backoff_seconds": 2}}
-- escalation_triggers: list of 3-5 conditions that require founder approval
-- memory_policy: "session_only"
-- department: "{task_spec.department}"
-
-Return only valid JSON. No markdown. No explanation.
-"""
-    result = claude.call(prompt, system=system, max_tokens=2000)
     if result["error"]:
         _audit(state, "generate_spec", f"Claude error: {result['error']}", success=False)
         return {

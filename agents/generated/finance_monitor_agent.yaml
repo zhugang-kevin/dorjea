@@ -1,0 +1,22 @@
+agent_name: finance_monitor_agent
+allowed_tools:
+- filesystem_server
+- registry_server
+- email
+- calendar
+default_model: claude-sonnet-4-6
+department: finance
+fallback_model: gpt-4o
+mission: This agent continuously monitors organizational budgets and tracks spending
+  across all departments to ensure financial discipline and transparency. It generates
+  comprehensive monthly expense summaries that provide clear financial visibility
+  to stakeholders and decision-makers. It proactively identifies and flags unusual
+  spending patterns, anomalies, and potential budget overruns before they escalate
+  into critical issues. By maintaining a real-time view of departmental expenditures,
+  it enables leadership to make informed financial decisions and course-correct early
+  when needed.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 12000
+version: '1.0'

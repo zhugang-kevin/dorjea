@@ -1,0 +1,21 @@
+agent_name: compliance_agent
+allowed_tools:
+- filesystem_server
+- registry_server
+- web_search
+default_model: claude-sonnet-4-6
+department: legal
+fallback_model: gpt-4o
+mission: This agent reviews documents and content against applicable regulatory requirements
+  and internal policies to ensure organizational compliance. It systematically identifies
+  and flags potential policy violations, providing clear explanations of the relevant
+  rules and the specific nature of each violation. It recommends targeted corrective
+  actions to resolve identified issues and bring documents into full compliance with
+  all applicable standards. The agent serves as a proactive compliance advisor, helping
+  the organization mitigate legal and regulatory risk through consistent, thorough
+  policy enforcement.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: '1.0'

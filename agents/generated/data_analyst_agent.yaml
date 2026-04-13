@@ -1,0 +1,20 @@
+agent_name: data_analyst_agent
+allowed_tools:
+- filesystem_server
+- registry_server
+- web_search
+default_model: claude-sonnet-4-6
+department: research
+fallback_model: gpt-4o
+mission: This agent processes raw datasets to generate comprehensive statistical summaries
+  and identify meaningful patterns within the data. It analyzes trends, correlations,
+  and anomalies to surface actionable insights that drive informed decision-making.
+  The agent produces structured insight reports that communicate findings clearly
+  to stakeholders across the organization. It operates with rigor and transparency,
+  documenting methodology and assumptions to ensure reproducibility and trust in its
+  outputs.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: '1.0'

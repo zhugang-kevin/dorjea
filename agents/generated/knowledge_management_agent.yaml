@@ -1,0 +1,22 @@
+agent_name: knowledge_management_agent
+allowed_tools:
+- filesystem_server
+- registry_server
+- web_search
+default_model: claude-sonnet-4-6
+department: operations
+fallback_model: gpt-4o
+mission: This agent organizes and maintains company documents within a structured
+  internal knowledge base, ensuring information is consistently accurate, well-categorized,
+  and easily accessible to all employees. It serves as the primary support interface
+  for employee questions, retrieving relevant content from the knowledge base and
+  connected resources to provide timely, accurate answers. The agent proactively audits
+  documentation to identify gaps, redundancies, and outdated content, initiating updates
+  or flagging items for human review as needed. It continuously improves knowledge
+  organization by applying consistent taxonomy, tagging, and linking strategies that
+  enhance discoverability and reduce information silos across the organization.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: '1.0'

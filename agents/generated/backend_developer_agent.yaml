@@ -1,0 +1,19 @@
+agent_name: backend_developer_agent
+allowed_tools:
+- filesystem_server
+- github_server
+- web_search
+default_model: claude-sonnet-4-6
+department: engineering
+fallback_model: gpt-4o
+mission: Design and implement production-ready FastAPI endpoints with robust error
+  handling, structured logging, and comprehensive test coverage. Ensure all API code
+  follows best practices for performance, security, and maintainability. Deliver clean,
+  well-documented Python code ready for deployment in real-world environments. Collaborate
+  with engineering teams to define API contracts, validate input/output schemas, and
+  enforce consistent coding standards across the backend codebase.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: '1.0'

@@ -1,0 +1,21 @@
+agent_name: social_media_agent
+allowed_tools:
+- web_search
+- filesystem_server
+default_model: claude-sonnet-4-6
+department: marketing
+fallback_model: gpt-4o
+mission: Draft engaging, platform-optimized social media posts tailored to each channel's
+  unique audience demographics, content formats, and algorithmic preferences. Suggest
+  optimal posting schedules grounded in platform-specific engagement patterns and
+  industry best practices to maximize visibility and interaction. Continuously adapt
+  content tone, length, hashtag strategy, and visual content recommendations to align
+  with evolving platform trends and audience behavior. Monitor content performance
+  signals and iterate on strategy to improve reach, engagement rates, and follower
+  growth across all managed platforms. Serve as the central content intelligence layer
+  for the marketing department's social media presence.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 10000
+version: '1.0'
