@@ -1,0 +1,24 @@
+version: '3.9'
+
+services:
+  dorjea-factory:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - PRIMARY_MODEL=${PRIMARY_MODEL}
+      - VERIFIER_MODEL=${VERIFIER_MODEL}
+      - DATABASE_URL=sqlite:///./memory/aifactory.db
+      - ENVIRONMENT=production
+      - LOG_LEVEL=INFO
+      - MAX_TOKENS_PER_TASK=20000
+      - DAILY_TOKEN_BUDGET=100000
+    volumes:
+      - ./logs:/app/logs
+      - ./memory:/app/memory
+      - ./agents/specs:/app/agents/specs
+      - ./agents/generated:/app/agents/generated
+      - ./agents/manifests:/app/agents/manifests
+    restart: unless-stopped
