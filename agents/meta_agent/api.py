@@ -12,6 +12,7 @@ from self_defence.injection_detector import is_safe
 from self_defence.rate_limiter import rate_limiter
 from self_monitoring.health_monitor import get_factory_dashboard
 from self_token.budget_manager import get_daily_usage, is_within_daily_budget
+from self_monitoring.drift_detector import get_drift_status
 from agents.runtime.agent_runtime import runtime
 from agents.meta_agent.task_gateway import gateway
 
@@ -50,13 +51,21 @@ class CreateAgentResponse(BaseModel):
 def health_check() -> dict:
     dashboard = get_factory_dashboard()
     daily_tokens = get_daily_usage()
+    drift = get_drift_status()
+    all_alerts = dashboard["alerts"] + drift["alerts"]
+    overall_status = "alert" if all_alerts else "healthy"
     return {
-        "status": dashboard["status"],
+        "status": overall_status,
         "service": "Dorjea AI Factory",
         "system": dashboard["system"],
-        "alerts": dashboard["alerts"],
+        "alerts": all_alerts,
         "daily_tokens_used": daily_tokens,
         "daily_budget_ok": is_within_daily_budget(),
+        "drift": {
+            "health_score": drift["health_score"],
+            "drift_detected": drift["drift_detected"],
+            "status": drift["status"],
+        },
     }
 
 
