@@ -16,6 +16,7 @@ from self_monitoring.drift_detector import get_drift_status
 from self_monitoring.agent_performance import get_performance_summary
 from agents.runtime.agent_runtime import runtime
 from agents.meta_agent.task_gateway import gateway
+from agents.meta_agent.task_integrity import run_task_integrity_check, complete_task_record
 
 load_dotenv()
 
@@ -110,14 +111,27 @@ def create_agent(body: CreateAgentRequest) -> CreateAgentResponse:
 
     config = {"configurable": {"thread_id": task_id}}
 
+    integrity_ok, integrity_errors = run_task_integrity_check(task_envelope)
+    if not integrity_ok:
+        raise HTTPException(status_code=400, detail=" | ".join(integrity_errors))
+
     try:
         final_state = meta_agent_graph.invoke(initial_state, config=config)
     except Exception as e:
+        complete_task_record(task_id, "failed", output_preview=str(e))
         raise HTTPException(status_code=500, detail="Graph execution failed: " + str(e))
 
     report = final_state.get("founder_report")
     if not report:
+        complete_task_record(task_id, "failed", output_preview="No report returned")
         raise HTTPException(status_code=500, detail="No report returned from graph.")
+
+    complete_task_record(
+        task_id=task_id,
+        status=report.status.lower(),
+        tokens_used=report.total_tokens_used,
+        output_preview=report.summary,
+    )
 
     return CreateAgentResponse(
         task_id=report.task_id,
