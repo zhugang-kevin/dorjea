@@ -25,6 +25,8 @@ from agents.meta_agent.audit_logger import write_audit_entry
 from agents.meta_agent.registry import agent_exists, register_agent as db_register_agent
 from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
 from self_defence.injection_detector import is_safe
+from self_token.budget_manager import track_tokens, is_within_budget
+from self_governance.policy_engine import policy_engine
 from self_defence.rate_limiter import rate_limiter
 
 load_dotenv()
@@ -113,6 +115,13 @@ Founder request: {founder_request}
 
 Return only valid JSON. No markdown. No explanation.
 """
+    if not is_within_budget(state.get("total_tokens_used", 0)):
+        _audit(state, "parse_request", "Token budget exceeded", success=False)
+        return {
+            "current_error": "Token budget exceeded for this task.",
+            "should_stop": True,
+        }
+
     result = claude.call(prompt, system=system)
     if result["error"]:
         _audit(state, "parse_request", f"Claude error: {result['error']}", success=False)
