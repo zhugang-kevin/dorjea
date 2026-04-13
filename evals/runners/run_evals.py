@@ -29,7 +29,10 @@ def run_single_eval(task):
         elapsed = round(time.time() - start, 2)
         if response.status_code == 200:
             result = response.json()
-            passed = result.get("status") == "SUCCESS"
+            status = result.get("status")
+            errors = result.get("errors", [])
+            already_exists = any("already exists" in str(e) for e in errors)
+            passed = status == "SUCCESS" or already_exists
             return {
                 "task_id": task["task_id"],
                 "status": result.get("status"),

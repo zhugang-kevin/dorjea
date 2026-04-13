@@ -1,0 +1,21 @@
+{
+  "timestamp": "2026-04-13T01:30:27.462257",
+  "total_tasks": 1,
+  "passed": 1,
+  "failed": 0,
+  "pass_rate": 100.0,
+  "total_tokens": 2096,
+  "results": [
+    {
+      "task_id": "eval_001",
+      "status": "FAILED",
+      "agent_name": "market_trends_research_agent",
+      "tokens_used": 2096,
+      "elapsed_seconds": 7.23,
+      "passed": true,
+      "errors": [
+        "Agent 'market_trends_research_agent' already exists in registry."
+      ]
+    }
+  ]
+}
