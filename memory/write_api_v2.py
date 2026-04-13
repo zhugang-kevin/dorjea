@@ -1,3 +1,4 @@
+content = """
 from __future__ import annotations
 import uuid
 from fastapi import FastAPI, HTTPException, Request
@@ -150,3 +151,8 @@ def get_metrics() -> dict:
         "budget_remaining": 100000 - get_daily_usage(),
         "budget_ok": is_within_daily_budget(),
     }
+"""
+
+with open("agents/meta_agent/api.py", "w", encoding="utf-8") as f:
+    f.write(content.strip())
+print("api.py updated with Self-* integration")
