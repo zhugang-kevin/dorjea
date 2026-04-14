@@ -10,6 +10,7 @@ from self_token.budget_manager import track_tokens, is_within_budget
 from self_governance.policy_engine import policy_engine
 from agents.runtime.capability_sandbox import create_sandbox
 from agents.runtime.error_recovery import classify_error, execute_recovery, should_escalate_to_founder
+from agents.runtime.code_executor import execute_code, run_tests
 from self_monitoring.agent_performance import record_task_result
 
 claude = ClaudeClient()
@@ -133,6 +134,21 @@ class AgentRuntime:
             tokens_used=result["total_tokens"],
             elapsed_seconds=0,
         )
+        output_text = result["text"]
+
+        code_execution_result = None
+        if any(kw in task_instruction.lower() for kw in ["run this code", "execute this", "test this code", "run the code"]):
+            import re
+            code_blocks = re.findall(r"```(?:python)?
+?(.*?)```", output_text, re.DOTALL)
+            if code_blocks:
+                exec_result = execute_code(agent_name, task_id, code_blocks[0])
+                code_execution_result = exec_result
+                if exec_result["success"]:
+                    output_text += chr(10) + chr(10) + "**Code Execution Result:**" + chr(10) + exec_result["output"]
+                else:
+                    output_text += chr(10) + chr(10) + "**Execution Error:**" + chr(10) + exec_result["error"]
+
         self._log(agent_name, task_id, "TASK_COMPLETED",
                  {"tokens": result["total_tokens"], "output_preview": result["text"][:200]})
 
@@ -140,10 +156,11 @@ class AgentRuntime:
             "status": "SUCCESS",
             "task_id": task_id,
             "agent_name": agent_name,
-            "output": result["text"],
+            "output": output_text,
             "tokens_used": result["total_tokens"],
             "model_used": model,
             "completed_at": datetime.utcnow().isoformat(),
+            "code_execution": code_execution_result,
         }
 
 
