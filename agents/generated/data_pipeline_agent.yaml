@@ -1,0 +1,16 @@
+agent_name: data_pipeline_agent
+allowed_tools:
+- filesystem_server
+- registry_server
+default_model: claude-sonnet-4-6
+department: engineering
+fallback_model: gpt-5
+mission: Automates the ingestion and processing of CSV files through structured data
+  pipelines. Validates data quality by detecting anomalies, missing values, and schema
+  inconsistencies. Transforms datasets and generates comprehensive statistical reports
+  for downstream consumption.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: 1.0.0

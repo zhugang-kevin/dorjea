@@ -285,7 +285,12 @@ def generate_spec(state: MetaAgentState) -> dict:
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
-        data = json.loads(raw.strip())
+        raw = raw.strip()
+        brace_start = raw.find("{")
+        brace_end = raw.rfind("}") + 1
+        if brace_start >= 0 and brace_end > brace_start:
+            raw = raw[brace_start:brace_end]
+        data = json.loads(raw)
         agent_spec = AgentSpec(**data)
         spec_yaml = yaml.dump(data, default_flow_style=False)
         tokens = result["total_tokens"]

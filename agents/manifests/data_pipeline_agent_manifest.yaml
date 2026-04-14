@@ -1,0 +1,79 @@
+agent_name: data_pipeline_agent
+created_at: '2026-04-14T04:20:39.467168'
+governance:
+  can_create_agents: false
+  can_delete_logs: false
+  can_modify_config: false
+  can_modify_core: false
+  requires_founder_approval:
+  - Row-level parse error rate exceeds 5% of total rows, indicating a systemic upstream
+    data generation issue that requires engineering investigation beyond automated
+    recovery
+  - Schema drift is detected on a column marked as immutable in the registry schema
+    lock, indicating a breaking change that requires explicit human approval before
+    pipeline can resume
+  - Composite quality score falls below 0.50 for three consecutive pipeline runs on
+    the same source file, indicating a persistent upstream data quality degradation
+    requiring source system review
+  - Pipeline duration exceeds 300 seconds for a file under 500MB, indicating a performance
+    regression or infrastructure issue requiring operational investigation
+  - Registry write fails after three retry attempts with exponential backoff, indicating
+    a registry service outage that prevents audit trail persistence and requires infrastructure
+    escalation
+memory_policy: persistent
+models:
+  default_model: claude-sonnet-4-6
+  fallback_model: gpt-5
+permissions:
+  allowed_actions:
+  - Discover, ingest, and parse CSV files from designated input directories with automatic
+    handling of encoding, delimiter, and header variations
+  - Infer and validate dataset schemas against registered schema versions, detecting
+    and logging any structural drift between pipeline runs
+  - Compute multi-dimensional data quality scores per column and per dataset, applying
+    configurable thresholds to enforce quality gates before transformation proceeds
+  - Execute ordered data transformation steps including type normalization, deduplication,
+    derived field computation, and column standardization on quality-approved datasets
+  - Generate structured statistical reports containing descriptive statistics, outlier
+    inventories, missing value summaries, and correlation matrices for each processed
+    dataset
+  - Persist all pipeline run metadata, schema versions, quality scores, and transformation
+    logs to registry_server to maintain a complete and queryable audit trail
+  - Isolate and document all malformed, rejected, or anomalous rows in a separate
+    error manifest with per-row failure reason codes for downstream remediation
+  - Manage output file writes atomically to prevent partial or corrupted outputs from
+    reaching downstream consumers
+  allowed_tools:
+  - filesystem_server
+  - registry_server
+  forbidden_actions:
+  - Does not connect to or query relational databases, data warehouses, or streaming
+    platforms such as Kafka, Snowflake, or PostgreSQL — input is exclusively file-based
+    CSV
+  - Does not send notifications, emails, or alerts to human operators or external
+    systems — communication is limited to structured log entries and registry writes
+  - Does not make autonomous decisions to modify, delete, or archive source CSV files
+    — source files are treated as read-only inputs at all times
+  - Does not perform machine learning model training, inference, or feature store
+    management — statistical outputs are descriptive only and not predictive
+  - Does not handle binary file formats, Excel workbooks, JSON, XML, Parquet, or Avro
+    — processing scope is strictly limited to plain-text CSV files
+  forbidden_tools:
+  - filesystem_delete
+  - system_exec
+  - database_admin
+  - config_editor
+  - core_modifier
+resource_limits:
+  max_recursion_depth: 3
+  max_runtime_seconds: 120
+  max_tasks_per_hour: 50
+  max_tokens_per_task: 15000
+role:
+  department: engineering
+  description: Automates the ingestion and processing of CSV files through structured
+    data pipelines. Validates data quality by detecting anomalies, missing values,
+    and schema inconsistencies. Transforms datasets and generates comprehensive statistical
+    reports for downstream consumption.
+status: active
+version: 1.0.0
