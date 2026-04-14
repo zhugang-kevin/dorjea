@@ -1,6 +1,6 @@
 from __future__ import annotations
 import uuid
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from dotenv import load_dotenv
@@ -280,3 +280,56 @@ def get_budget() -> dict:
         "tokens_remaining": max(0, budget - used),
         "usage_percent": round(used / budget * 100, 1) if budget > 0 else 0,
     }
+
+
+class RegisterRequest(BaseModel):
+    email: str
+    password: str
+    name: str
+    lang: str = "en"
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+    captcha_answer: int
+    captcha_expected: int
+
+@app.post("/auth/register")
+def register(body: RegisterRequest, request: Request) -> dict:
+    ip = request.client.host if request.client else "unknown"
+    ua = request.headers.get("user-agent", "")
+    user, error = register_user(body.email, body.password, body.name, ip, ua, body.lang)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"status": "SUCCESS", "message": "Registration successful. Please login."}
+
+@app.post("/auth/login")
+def login(body: LoginRequest, request: Request) -> dict:
+    if body.captcha_answer != body.captcha_expected:
+        raise HTTPException(status_code=400, detail="Incorrect captcha answer.")
+    ip = request.client.host if request.client else "unknown"
+    ua = request.headers.get("user-agent", "")
+    result, error = login_user(body.email, body.password, ip, ua)
+    if error:
+        raise HTTPException(status_code=401, detail=error)
+    return {"status": "SUCCESS", "token": result["token"], "user": result["user"]}
+
+@app.get("/auth/me")
+def get_me(authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    token = authorization.replace("Bearer ", "")
+    user = get_user_by_token(token)
+    if not user:
+        raise HTTPException(status_code=401, detail="Invalid or expired token")
+    limits = get_plan_limits(user.get("plan", "free"))
+    return {
+        "user": {k: v for k, v in user.items() if k != "password_hash"},
+        "plan_limits": limits,
+        "daily_tokens_used": user.get("daily_tokens_used", 0),
+        "daily_token_limit": limits["daily_tokens"],
+    }
+
+@app.get("/plans")
+def get_plans() -> dict:
+    return {"plans": PLAN_LIMITS}
