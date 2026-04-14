@@ -40,16 +40,20 @@ def compress_prompt(prompt, max_chars=12000):
     return prompt[:half] + chr(10) + "[...content compressed...]" + chr(10) + prompt[-half:]
 
 
-def get_daily_usage():
+def get_daily_usage(hours=48):
     if not METRICS_PATH.exists():
         return 0
-    today = datetime.utcnow().date().isoformat()
+    from datetime import timedelta
+    cutoff = (datetime.utcnow() - timedelta(hours=hours)).isoformat()
     total = 0
     try:
         with open(METRICS_PATH, encoding="utf-8") as f:
             for line in f:
-                entry = json.loads(line.strip())
-                if entry.get("timestamp", "").startswith(today):
+                line = line.strip()
+                if not line:
+                    continue
+                entry = json.loads(line)
+                if entry.get("timestamp", "") >= cutoff:
                     total += entry.get("total_tokens", 0)
     except Exception:
         pass

@@ -33,6 +33,14 @@ def load_recent_metrics(hours=24):
     return records
 
 
+NOISE_ACTIONS = [
+    "TASK_INTAKE_STARTED", "TASK_PLANNING_STARTED",
+    "TASK_COMPLETION_FAILED", "TASK_VALIDATION_FAILED",
+    "LIFECYCLE_TRANSITION", "MEMORY_WRITE_APPROVED",
+    "VERSION_CHECK_COMPLETE", "GATEWAY_ADMITTED",
+    "PLAN_CREATED", "PROVIDER_SUCCESS",
+]
+
 def load_recent_audit(hours=24):
     audit_path = Path("logs/audit.jsonl")
     if not audit_path.exists():
@@ -47,7 +55,8 @@ def load_recent_audit(hours=24):
                     continue
                 record = json.loads(line)
                 ts = record.get("logged_at", "")
-                if ts >= cutoff.isoformat():
+                action = record.get("action", "")
+                if ts >= cutoff.isoformat() and action not in NOISE_ACTIONS:
                     records.append(record)
     except Exception:
         pass

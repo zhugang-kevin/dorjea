@@ -112,6 +112,23 @@ def register_agent(
         return {"success": False, "agent_id": None, "error": str(e)}
 
 
+def _enrich_agent(agent: dict) -> dict:
+    if not agent:
+        return agent
+    spec_yaml = agent.get("spec_yaml", "")
+    if spec_yaml:
+        try:
+            import yaml
+            spec = yaml.safe_load(spec_yaml)
+            if spec:
+                for field in ["department", "responsibilities", "non_responsibilities",
+                              "escalation_triggers", "memory_policy", "retry_policy"]:
+                    if agent.get(field) in (None, "", "general") and spec.get(field):
+                        agent[field] = spec[field]
+        except Exception:
+            pass
+    return agent
+
 def get_agent(agent_name: str) -> Optional[dict]:
     """
     Retrieve a single agent by name.
@@ -147,7 +164,7 @@ def list_agents(status: str = "active") -> list[dict]:
         )
         rows = _fetchall(cursor)
         conn.close()
-        return rows
+        return [_enrich_agent(row) for row in rows]
     except Exception:
         return []
 
