@@ -15,6 +15,9 @@ from self_token.budget_manager import get_daily_usage, is_within_daily_budget
 from self_monitoring.drift_detector import get_drift_status
 from agents.meta_agent.version_checker import check_all_versions
 from agents.meta_agent.agent_auditor import audit_all_agents
+from agents.meta_agent.lifecycle_manager import transition_agent, get_lifecycle_summary, get_lifecycle_history
+from agents.meta_agent.communication_protocol import send_message, get_messages
+from agents.meta_agent.knowledge_consistency import get_knowledge_summary, check_consistency
 from self_monitoring.agent_performance import get_performance_summary
 from agents.runtime.agent_runtime import runtime
 from agents.meta_agent.task_gateway import gateway
@@ -206,3 +209,35 @@ def get_versions() -> dict:
 @app.get("/agents/audit")
 def audit_agents() -> dict:
     return audit_all_agents()
+
+
+@app.get("/agents/lifecycle")
+def lifecycle_summary() -> dict:
+    return get_lifecycle_summary()
+
+@app.get("/agents/{agent_name}/lifecycle")
+def agent_lifecycle_history(agent_name: str) -> dict:
+    return {"agent": agent_name, "history": get_lifecycle_history(agent_name)}
+
+@app.post("/agents/{agent_name}/deploy")
+def deploy_agent_endpoint(agent_name: str) -> dict:
+    ok, msg = transition_agent(agent_name, "deployed", "Deployed via API")
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"status": "SUCCESS", "message": msg}
+
+@app.post("/agents/{agent_name}/retire")
+def retire_agent_endpoint(agent_name: str) -> dict:
+    ok, msg = transition_agent(agent_name, "retired", "Retired via API")
+    if not ok:
+        raise HTTPException(status_code=400, detail=msg)
+    return {"status": "SUCCESS", "message": msg}
+
+
+@app.get("/system/knowledge")
+def knowledge_summary() -> dict:
+    return get_knowledge_summary()
+
+@app.get("/system/knowledge/consistency")
+def knowledge_consistency() -> dict:
+    return check_consistency()
