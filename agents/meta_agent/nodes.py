@@ -29,6 +29,7 @@ from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from agents.meta_agent.manifest_manager import save_manifest
 from agents.meta_agent.architecture_validator import run_full_architecture_validation
+from agents.meta_agent.validation_gates import run_all_validation_gates
 from agents.meta_agent.reproducibility import save_execution_record
 from agents.meta_agent.prompts import (
     GENERATE_SPEC_SYSTEM,
@@ -612,11 +613,16 @@ def register_agent(state: MetaAgentState) -> dict:
     if not arch_ok:
         error_msg = "Architecture validation failed: " + " | ".join(arch_errors)
         _audit(state, "register_agent", error_msg, success=False)
-        return {
-            "current_error": error_msg,
-            "should_stop": True,
-        }
+        return {"current_error": error_msg, "should_stop": True}
     _audit(state, "register_agent", "Architecture validation passed")
+
+    gates_result = run_all_validation_gates(agent_spec)
+    _audit(state, "register_agent",
+           "Validation gates: " + str(gates_result["gates_passed"]) + "/" + str(gates_result["total_gates"]) + " passed",
+           success=gates_result["passed"])
+    if not gates_result["passed"]:
+        error_msg = "Validation gates failed: " + " | ".join(gates_result["errors"][:3])
+        return {"current_error": error_msg, "should_stop": True}
 
     SPECS_DIR.mkdir(parents=True, exist_ok=True)
     spec_path = SPECS_DIR / f"{agent_spec.agent_name}.yaml"
