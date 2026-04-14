@@ -137,18 +137,23 @@ class AgentRuntime:
         output_text = result["text"]
 
         code_execution_result = None
-        if any(kw in task_instruction.lower() for kw in ["run this code", "execute this", "test this code", "run the code"]):
-            import re
-            code_blocks = re.findall(r"```(?:python)?
-?(.*?)```", output_text, re.DOTALL)
-            if code_blocks:
-                exec_result = execute_code(agent_name, task_id, code_blocks[0])
-                code_execution_result = exec_result
-                if exec_result["success"]:
-                    output_text += chr(10) + chr(10) + "**Code Execution Result:**" + chr(10) + exec_result["output"]
-                else:
-                    output_text += chr(10) + chr(10) + "**Execution Error:**" + chr(10) + exec_result["error"]
-
+        output_text = result["text"]
+        task_lower = task_instruction.lower()
+        if "run this code" in task_lower or "execute this" in task_lower or "test this code" in task_lower:
+            tick3 = chr(96) * 3
+            start_idx = output_text.find(tick3)
+            if start_idx >= 0:
+                end_idx = output_text.find(tick3, start_idx + 3)
+                if end_idx > start_idx:
+                    code_block = output_text[start_idx+3:end_idx].strip()
+                    if code_block.startswith("python"):
+                        code_block = code_block[6:].strip()
+                    exec_result = execute_code(agent_name, task_id, code_block)
+                    code_execution_result = exec_result
+                    if exec_result["success"]:
+                        output_text += chr(10) + chr(10) + "Execution Result:" + chr(10) + exec_result["output"]
+                    else:
+                        output_text += chr(10) + chr(10) + "Execution Error:" + chr(10) + exec_result["error"]
         self._log(agent_name, task_id, "TASK_COMPLETED",
                  {"tokens": result["total_tokens"], "output_preview": result["text"][:200]})
 
