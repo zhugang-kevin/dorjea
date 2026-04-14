@@ -1,0 +1,13 @@
+{
+  "task_id": "8c3898a3-9d7f-4476-a313-eddc0f21e2a9",
+  "agent_id": "sales_pipeline_agent",
+  "node_name": "generate_spec",
+  "timestamp": "2026-04-14T01:29:48.233498",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0.0,
+  "system_prompt_hash": "6036716908302476606",
+  "system_prompt_preview": "You are the AI Factory Meta-Agent specification engine. Generate a complete 16-component Agent DNA Schema from a TaskSpec. You have no role. You produce agents for any domain. Return ONLY valid JSON. ",
+  "user_prompt_preview": "## TaskSpec\n{\n  \"task_id\": \"\",\n  \"agent_name\": \"sales_pipeline_agent\",\n  \"agent_role\": \"Sales Pipeline & Outreach Manager\",\n  \"agent_mission\": \"This agent manages the end-to-end sales pipeline by qual",
+  "output_preview": "{\"agent_name\":\"sales_pipeline_agent\",\"version\":\"1.0.0\",\"department\":\"sales\",\"mission\":\"Manage the end-to-end sales pipeline by qualifying leads, tracking deal progress, maintaining accurate pipeline d",
+  "tokens_used": 5575
+}

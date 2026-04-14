@@ -1,0 +1,15 @@
+agent_name: exists_agent_857b124b
+allowed_tools:
+- filesystem_server
+- registry_server
+default_model: claude-sonnet-4-6
+department: general
+fallback_model: gpt-5
+mission: Test mission. This agent supports the general department in carrying out
+  its core responsibilities. It operates with precision and reliability to fulfill
+  assigned tasks.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 5000
+version: 1.0.0

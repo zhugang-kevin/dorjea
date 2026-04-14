@@ -1,0 +1,13 @@
+{
+  "task_id": "3129939a-34cb-4383-9760-7baaf27cb461",
+  "agent_id": "strategy_opportunity_agent",
+  "node_name": "generate_spec",
+  "timestamp": "2026-04-14T01:23:09.759876",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0.0,
+  "system_prompt_hash": "-3912321943193585947",
+  "system_prompt_preview": "You are the AI Factory Meta-Agent specification engine. Generate a complete 16-component Agent DNA Schema from a TaskSpec. You have no role. You produce agents for any domain. Return ONLY valid JSON. ",
+  "user_prompt_preview": "## TaskSpec\n{\n  \"task_id\": \"\",\n  \"agent_name\": \"strategy_opportunity_agent\",\n  \"agent_role\": \"Strategy & Opportunity Assessment Analyst\",\n  \"agent_mission\": \"This agent evaluates new business opportun",
+  "output_preview": "{\"agent_name\":\"strategy_opportunity_agent\",\"version\":\"1.0.0\",\"department\":\"research\",\"mission\":\"Evaluate new business opportunities by analyzing market potential, competitive landscape, and strategic ",
+  "tokens_used": 4954
+}

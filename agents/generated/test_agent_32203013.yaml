@@ -1,0 +1,15 @@
+agent_name: test_agent_32203013
+allowed_tools:
+- filesystem_server
+- registry_server
+default_model: claude-sonnet-4-6
+department: general
+fallback_model: gpt-5
+mission: Test mission for automated testing. This agent is designed to support general
+  department operations and automated testing workflows. It ensures reliable execution
+  of assigned tasks within defined parameters.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 8000
+version: 1.0.0

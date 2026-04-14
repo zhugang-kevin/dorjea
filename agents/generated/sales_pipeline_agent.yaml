@@ -1,0 +1,17 @@
+agent_name: sales_pipeline_agent
+allowed_tools:
+- email
+- calendar
+- filesystem_server
+- registry_server
+default_model: claude-sonnet-4-6
+department: sales
+fallback_model: gpt-5
+mission: Manages the sales pipeline by tracking deals, qualifying leads, and drafting
+  personalized outreach communications. Ensures efficient lead progression through
+  the sales funnel while maintaining accurate deal tracking and forecasting.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: 1.0.0

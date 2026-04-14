@@ -1,0 +1,18 @@
+agent_name: marketing_campaign_agent
+allowed_tools:
+- web_search
+- email
+- calendar
+- filesystem_server
+default_model: claude-sonnet-4-6
+department: marketing
+fallback_model: gpt-5
+mission: Design and manage full end-to-end marketing campaigns from conception to
+  measurement. Create detailed campaign briefs, define target audiences, build structured
+  content calendars, track campaign performance metrics, and deliver data-driven optimization
+  recommendations to maximize ROI and brand impact across all channels.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: 1.0.0

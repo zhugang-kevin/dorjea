@@ -1,0 +1,13 @@
+{
+  "task_id": "0b1db25c-4602-48bc-81cf-04f9627bb174",
+  "agent_id": "exists_agent_c9117575",
+  "node_name": "generate_spec",
+  "timestamp": "2026-04-14T00:49:01.062151",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0.0,
+  "system_prompt_hash": "3508460812196171874",
+  "system_prompt_preview": "You are the AI Factory Meta-Agent specification engine. Generate a complete 16-component Agent DNA Schema from a TaskSpec. You have no role. You produce agents for any domain. Return ONLY valid JSON. ",
+  "user_prompt_preview": "## TaskSpec\n{\n  \"task_id\": \"\",\n  \"agent_name\": \"exists_agent_c9117575\",\n  \"agent_role\": \"General Agent\",\n  \"agent_mission\": \"Test mission. This agent supports the general department in achieving its o",
+  "output_preview": "{\"agent_name\":\"exists_agent_c9117575\",\"version\":\"1.0.0\",\"department\":\"general\",\"mission\":\"Test mission. This agent supports the general department in achieving its objectives. It operates with precisi",
+  "tokens_used": 3384
+}

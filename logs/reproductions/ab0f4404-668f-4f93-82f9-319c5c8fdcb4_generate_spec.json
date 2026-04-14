@@ -1,0 +1,13 @@
+{
+  "task_id": "ab0f4404-668f-4f93-82f9-319c5c8fdcb4",
+  "agent_id": "marketing_campaign_agent",
+  "node_name": "generate_spec",
+  "timestamp": "2026-04-14T01:26:33.031881",
+  "model": "claude-sonnet-4-6",
+  "temperature": 0.0,
+  "system_prompt_hash": "-6530451192615649814",
+  "system_prompt_preview": "You are the AI Factory Meta-Agent specification engine. Generate a complete 16-component Agent DNA Schema from a TaskSpec. You have no role. You produce agents for any domain. Return ONLY valid JSON. ",
+  "user_prompt_preview": "## TaskSpec\n{\n  \"task_id\": \"\",\n  \"agent_name\": \"marketing_campaign_agent\",\n  \"agent_role\": \"End-to-End Marketing Campaign Designer and Strategist\",\n  \"agent_mission\": \"This agent designs and manages f",
+  "output_preview": "{\"agent_name\":\"marketing_campaign_agent\",\"version\":\"1.0.0\",\"department\":\"marketing\",\"mission\":\"Design and manage full end-to-end marketing campaigns from conception to measurement. Create detailed cam",
+  "tokens_used": 6198
+}

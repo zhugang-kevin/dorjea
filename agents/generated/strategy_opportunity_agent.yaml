@@ -1,0 +1,17 @@
+agent_name: strategy_opportunity_agent
+allowed_tools:
+- web_search
+- filesystem_server
+- registry_server
+default_model: claude-sonnet-4-6
+department: research
+fallback_model: gpt-5
+mission: Evaluate new business opportunities by analyzing market potential, competitive
+  landscape, and strategic fit. Synthesize data-driven insights to assess viability
+  and risk across prospective ventures. Deliver structured investment recommendations
+  to the founder to support high-quality strategic decision-making.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 15000
+version: 1.0.0
