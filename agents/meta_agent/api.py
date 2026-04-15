@@ -394,7 +394,7 @@ def register_affiliate(body: AffiliateRequest) -> dict:
     return {"status": "SUCCESS", "affiliate": affiliate}
 
 @app.get("/affiliate/{email}/stats")
-def affiliate_stats(email: str, authorization: Optional[str] = Header(None)) -> dict:
+def affiliate_stats(email: str, authorization: str = Header(default="")) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     stats = get_affiliate_stats(email)
@@ -427,7 +427,7 @@ def register_affiliate(body: AffiliateRequest) -> dict:
     return {"status": "SUCCESS", "affiliate": affiliate}
 
 @app.get("/affiliate/{email}/stats")
-def affiliate_stats(email: str, authorization: Optional[str] = Header(None)) -> dict:
+def affiliate_stats(email: str, authorization: str = Header(default="")) -> dict:
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=401, detail="Not authenticated")
     stats = get_affiliate_stats(email)
