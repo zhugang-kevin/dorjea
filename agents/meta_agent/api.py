@@ -26,6 +26,8 @@ from agents.meta_agent.task_integrity import run_task_integrity_check, complete_
 load_dotenv()
 
 from agents.meta_agent.payments import create_checkout_session, handle_webhook, get_payment_config, upgrade_user_plan
+from agents.meta_agent.affiliate import create_affiliate, get_affiliate_stats, record_referral
+from agents.meta_agent.affiliate import create_affiliate, get_affiliate_stats, record_referral
 from agents.meta_agent.auth import (
     register_user, login_user, get_user_by_token,
     get_plan_limits, PLAN_LIMITS
@@ -373,3 +375,69 @@ def manual_upgrade(body: CheckoutRequest) -> dict:
 @app.get("/payments/config")
 def payment_config() -> dict:
     return get_payment_config()
+
+
+class AffiliateRequest(BaseModel):
+    email: str
+    name: str
+
+class ReferralRequest(BaseModel):
+    affiliate_code: str
+    referred_email: str
+    plan: str
+
+@app.post("/affiliate/register")
+def register_affiliate(body: AffiliateRequest) -> dict:
+    affiliate, error = create_affiliate(body.email, body.name)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"status": "SUCCESS", "affiliate": affiliate}
+
+@app.get("/affiliate/{email}/stats")
+def affiliate_stats(email: str, authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    stats = get_affiliate_stats(email)
+    if not stats:
+        raise HTTPException(status_code=404, detail="Affiliate not found")
+    return stats
+
+@app.post("/affiliate/referral")
+def track_referral(body: ReferralRequest) -> dict:
+    ok, result = record_referral(body.affiliate_code, body.referred_email, body.plan)
+    if not ok:
+        raise HTTPException(status_code=400, detail=result)
+    return {"status": "SUCCESS", "referral": result}
+
+
+class AffiliateRequest(BaseModel):
+    email: str
+    name: str
+
+class ReferralRequest(BaseModel):
+    affiliate_code: str
+    referred_email: str
+    plan: str
+
+@app.post("/affiliate/register")
+def register_affiliate(body: AffiliateRequest) -> dict:
+    affiliate, error = create_affiliate(body.email, body.name)
+    if error:
+        raise HTTPException(status_code=400, detail=error)
+    return {"status": "SUCCESS", "affiliate": affiliate}
+
+@app.get("/affiliate/{email}/stats")
+def affiliate_stats(email: str, authorization: Optional[str] = Header(None)) -> dict:
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    stats = get_affiliate_stats(email)
+    if not stats:
+        raise HTTPException(status_code=404, detail="Affiliate not found")
+    return stats
+
+@app.post("/affiliate/referral")
+def track_referral(body: ReferralRequest) -> dict:
+    ok, result = record_referral(body.affiliate_code, body.referred_email, body.plan)
+    if not ok:
+        raise HTTPException(status_code=400, detail=result)
+    return {"status": "SUCCESS", "referral": result}
