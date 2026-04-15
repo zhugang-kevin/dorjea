@@ -18,4 +18,4 @@ EXPOSE 8000
 ENV PYTHONUNBUFFERED=1
 ENV ENVIRONMENT=production
 
-CMD uvicorn agents.meta_agent.api:app --host 0.0.0.0 --port ${PORT:-8000}
+CMD ["python", "start.py"]
