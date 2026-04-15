@@ -25,6 +25,11 @@ from agents.meta_agent.task_integrity import run_task_integrity_check, complete_
 
 load_dotenv()
 
+from agents.meta_agent.auth import (
+    register_user, login_user, get_user_by_token,
+    get_plan_limits, PLAN_LIMITS
+)
+
 app = FastAPI(
     title="Dorjea AI Factory",
     description="Meta-Agent API — submit plain-English requests to create AI agents.",
@@ -33,7 +38,7 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

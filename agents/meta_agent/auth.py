@@ -4,14 +4,12 @@ import secrets
 import json
 from datetime import datetime, timedelta
 from pathlib import Path
-from passlib.context import CryptContext
 from jose import jwt, JWTError
+import hmac
 
 SECRET_KEY = os.getenv("JWT_SECRET_KEY", secrets.token_hex(32))
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_HOURS = 24
-
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 USERS_DB = Path("memory/users.jsonl")
 SESSIONS_DB = Path("memory/sessions.jsonl")
 
@@ -30,11 +28,17 @@ PLAN_LIMITS = {
 
 
 def hash_password(password):
-    return pwd_context.hash(password)
+    salt = secrets.token_hex(16)
+    h = hashlib.sha256((salt + password[:72]).encode()).hexdigest()
+    return salt + ":" + h
 
 
 def verify_password(plain, hashed):
-    return pwd_context.verify(plain, hashed)
+    try:
+        salt, h = hashed.split(":", 1)
+        return hmac.compare_digest(h, hashlib.sha256((salt + plain[:72]).encode()).hexdigest())
+    except Exception:
+        return False
 
 
 def create_access_token(data: dict, expires_hours=ACCESS_TOKEN_EXPIRE_HOURS):
