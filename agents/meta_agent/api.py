@@ -24,6 +24,15 @@ from agents.meta_agent.task_gateway import gateway
 from agents.meta_agent.task_integrity import run_task_integrity_check, complete_task_record
 
 load_dotenv()
+import os
+# Ensure critical env vars have defaults for production startup
+if not os.getenv("PRIMARY_MODEL"):
+    os.environ["PRIMARY_MODEL"] = "claude-sonnet-4-6"
+if not os.getenv("DAILY_TOKEN_BUDGET"):
+    os.environ["DAILY_TOKEN_BUDGET"] = "100000"
+if not os.getenv("JWT_SECRET_KEY"):
+    import secrets
+    os.environ["JWT_SECRET_KEY"] = secrets.token_hex(32)
 
 from agents.meta_agent.payments import create_checkout_session, handle_webhook, get_payment_config, upgrade_user_plan
 from agents.meta_agent.affiliate import create_affiliate, get_affiliate_stats, record_referral

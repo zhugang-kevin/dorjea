@@ -16,3 +16,7 @@ anyio
 bleach
 langsmith
 jsonschema
+stripe
+python-jose[cryptography]
+python-multipart
+numpy
