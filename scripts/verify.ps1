@@ -1,5 +1,5 @@
 # verify.ps1 - Daily verification script for Dorjea AI Factory
-Set-Location "E:\Dorjea"
+Set-Location "E:\Dorjea\Dorjea"
 $errors = 0
 Write-Host "Dorjea AI Factory - Daily Verification" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
