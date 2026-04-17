@@ -74,7 +74,7 @@ def create_affiliate(email: str, name: str):
         "email": email,
         "name": name,
         "code": code,
-        "referral_link": "https://dorjea.ai/login?ref=" + code,
+        "referral_link": "https://dorjea.com/login?ref=" + code,
         "total_referrals": 0,
         "paid_referrals": 0,
         "total_commission_usd": 0.0,
