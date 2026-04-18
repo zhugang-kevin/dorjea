@@ -29,7 +29,7 @@ from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from agents.meta_agent.manifest_manager import save_manifest
 from agents.meta_agent.architecture_validator import run_full_architecture_validation
-from agents.meta_agent.validation_gates import run_all_validation_gates
+from agents.meta_agent.validation_gates import run_all_gates as run_all_validation_gates
 from agents.meta_agent.reproducibility import save_execution_record
 from agents.meta_agent.prompts import (
     GENERATE_SPEC_SYSTEM,

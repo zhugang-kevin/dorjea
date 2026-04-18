@@ -22,6 +22,8 @@ from self_monitoring.agent_performance import get_performance_summary
 from agents.runtime.agent_runtime import runtime
 from agents.meta_agent.task_gateway import gateway
 from agents.meta_agent.task_integrity import run_task_integrity_check, complete_task_record
+from agents.meta_agent.validation_gates import run_all_gates, get_gate_summary
+from agents.meta_agent.architecture_invariants import check_invariants, get_invariant_list, VALID_DEPARTMENTS
 
 load_dotenv()
 import os
@@ -99,6 +101,12 @@ class CreateAgentResponse(BaseModel):
     total_tokens_used: int
     errors: list[str]
     rollback_command: str
+
+
+@app.get("/agents/invariants")
+def list_invariants() -> dict:
+    """Return all 25 architecture invariants."""
+    return {"invariants": get_invariant_list(), "total": 25}
 
 
 @app.get("/health")
@@ -265,6 +273,24 @@ def get_versions() -> dict:
 @app.get("/agents/audit")
 def audit_agents() -> dict:
     return audit_all_agents()
+
+
+@app.get("/agents/{agent_name}/validate")
+def validate_agent(agent_name: str) -> dict:
+    """Run all 10 validation gates against a single agent spec."""
+    agent = get_agent(agent_name)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found: " + agent_name)
+    return run_all_gates(agent)
+
+
+@app.get("/agents/{agent_name}/validate/summary")
+def validate_agent_summary(agent_name: str) -> dict:
+    """Return quick validation summary (no gate details) for an agent."""
+    agent = get_agent(agent_name)
+    if not agent:
+        raise HTTPException(status_code=404, detail="Agent not found: " + agent_name)
+    return get_gate_summary(agent)
 
 
 @app.get("/agents/lifecycle")

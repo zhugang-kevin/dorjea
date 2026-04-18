@@ -29,9 +29,7 @@ def call_with_fallback(prompt, system='', max_tokens=2000, task_id='routing'):
             if result['error']:
                 last_error = result['error']
                 write_audit_entry(AuditEntry(agent_id='model_router', task_id=task_id, action='PROVIDER_FAILED', details={'provider': provider, 'error': str(last_error)[:200]}, success=False))
-                if _is_connection_error(last_error) or _is_auth_error(last_error):
-                    continue
-                return result
+                continue
             write_audit_entry(AuditEntry(agent_id='model_router', task_id=task_id, action='PROVIDER_SUCCESS', details={'provider': provider, 'tokens': result['total_tokens']}, success=True))
             result['provider'] = provider
             return result

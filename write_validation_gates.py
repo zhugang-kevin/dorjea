@@ -1,3 +1,6 @@
+import os
+
+CONTENT = '''\
 from __future__ import annotations
 import re
 from datetime import datetime
@@ -32,17 +35,17 @@ def _count_csv(text: str) -> int:
 
 def _count_numbered_steps(text: str) -> int:
     """Count items that start with a digit followed by . or )."""
-    return len(re.findall(r"(?:^|\s)\d+[.):]", text))
+    return len(re.findall(r"(?:^|\\s)\\d+[.):]", text))
 
 
 def _count_metrics(text: str) -> int:
     """Count numeric metrics (percentages, plain numbers, ranges)."""
-    return len(re.findall(r"\d+(?:\.\d+)?\s*%|\b\d{2,}\b", text))
+    return len(re.findall(r"\\d+(?:\\.\\d+)?\\s*%|\\b\\d{2,}\\b", text))
 
 
 def _count_sentences(text: str) -> int:
     """Count sentence-like segments split by . or newline."""
-    parts = re.split(r"[.\n]+", text)
+    parts = re.split(r"[.\\n]+", text)
     return sum(1 for p in parts if len(p.strip()) > 10)
 
 
@@ -138,8 +141,8 @@ def _gate4_skill_coverage(agent: dict) -> dict:
 def _gate5_decision_logic(agent: dict) -> dict:
     """Gate 5: IF/THEN decision rules present."""
     decisions = _str(agent, "decisions")
-    if_count = len(re.findall(r"\bIF\b", decisions, re.IGNORECASE))
-    then_count = len(re.findall(r"\bTHEN\b", decisions, re.IGNORECASE))
+    if_count = len(re.findall(r"\\bIF\\b", decisions, re.IGNORECASE))
+    then_count = len(re.findall(r"\\bTHEN\\b", decisions, re.IGNORECASE))
     rule_count = min(if_count, then_count)
     score = min(10, rule_count * 2)
     passed = score >= 6
@@ -275,7 +278,7 @@ def _gate10_production_readiness(agent: dict) -> dict:
 
     # version
     version = _str(agent, "version")
-    if version and re.match(r"\d+\.\d+", version):
+    if version and re.match(r"\\d+\\.\\d+", version):
         score += 3
         details_parts.append(f"version set ('{version}').")
     else:
@@ -364,3 +367,12 @@ def get_gate_summary(agent: dict) -> dict:
         "summary": result["summary"],
         "audited_at": result["audited_at"],
     }
+'''
+
+dest = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "agents", "meta_agent", "validation_gates.py"
+)
+with open(dest, "w", encoding="utf-8") as f:
+    f.write(CONTENT)
+print(f"Written {len(CONTENT)} chars to {dest}")
