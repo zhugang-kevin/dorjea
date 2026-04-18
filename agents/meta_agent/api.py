@@ -36,7 +36,18 @@ if not os.getenv("JWT_SECRET_KEY"):
 
 from agents.meta_agent.payments import create_checkout_session, handle_webhook, get_payment_config, upgrade_user_plan
 from agents.meta_agent.affiliate import create_affiliate, get_affiliate_stats, record_referral
-from agents.meta_agent.affiliate import create_affiliate, get_affiliate_stats, record_referral
+from agents.meta_agent.analytics import router as analytics_router
+from agents.meta_agent.support import router as support_router
+from agents.meta_agent.clones import router as clones_router
+from agents.meta_agent.workflows import router as workflows_router
+from agents.meta_agent.api_keys import router as apikeys_router
+from agents.meta_agent.user_keys import router as userkeys_router
+from agents.meta_agent.billing import router as billing_router
+from agents.meta_agent.admin import router as admin_router
+from agents.meta_agent.notifications import router as notifications_router
+from agents.meta_agent.notifications import send_welcome_email, send_agent_created_email
+from agents.meta_agent.plan_enforcement import enforce_agent_limit, enforce_clone_limit
+
 from agents.meta_agent.auth import (
     register_user, login_user, get_user_by_token,
     get_plan_limits, PLAN_LIMITS
@@ -47,6 +58,17 @@ app = FastAPI(
     description="Meta-Agent API — submit plain-English requests to create AI agents.",
     version="1.0.0",
 )
+
+
+app.include_router(analytics_router)
+app.include_router(support_router)
+app.include_router(clones_router)
+app.include_router(workflows_router)
+app.include_router(apikeys_router)
+app.include_router(userkeys_router)
+app.include_router(billing_router)
+app.include_router(admin_router)
+app.include_router(notifications_router)
 
 app.add_middleware(
     CORSMiddleware,
