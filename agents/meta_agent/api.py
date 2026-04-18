@@ -45,6 +45,7 @@ from agents.meta_agent.user_keys import router as userkeys_router
 from agents.meta_agent.billing import router as billing_router
 from agents.meta_agent.admin import router as admin_router
 from agents.meta_agent.notifications import router as notifications_router
+from agents.meta_agent.templates import router as templates_router
 from agents.meta_agent.notifications import send_welcome_email, send_agent_created_email
 from agents.meta_agent.plan_enforcement import enforce_agent_limit, enforce_clone_limit
 
@@ -69,6 +70,7 @@ app.include_router(userkeys_router)
 app.include_router(billing_router)
 app.include_router(admin_router)
 app.include_router(notifications_router)
+app.include_router(templates_router)
 
 app.add_middleware(
     CORSMiddleware,
