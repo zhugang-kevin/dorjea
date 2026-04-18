@@ -5,6 +5,7 @@ from datetime import datetime
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
+from agents.meta_agent.plan_enforcement import enforce_clone_limit
 
 router = APIRouter(prefix="/clones", tags=["Department Clones"])
 CLONES_FILE = "memory/department_clones.jsonl"
@@ -58,6 +59,7 @@ def create_clone(req: CreateCloneRequest):
         raise HTTPException(400, detail="Invalid department")
     clones = load_clones()
     user_clones = [c for c in clones if c["user_email"] == req.user_email and not c.get("deleted")]
+    enforce_clone_limit(req.user_email)
     if len(user_clones) >= 10:
         raise HTTPException(400, detail="Maximum 10 department clones per account")
     existing = [c for c in user_clones if c["department"] == req.department]

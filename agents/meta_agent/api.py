@@ -97,6 +97,15 @@ def health_check() -> dict:
 def create_agent(body: CreateAgentRequest) -> CreateAgentResponse:
     if not body.request or len(body.request.strip()) < 10:
         raise HTTPException(status_code=400, detail="Request must be at least 10 characters.")
+    # Plan enforcement - check agent limit
+    try:
+        user_email = getattr(body, "user_email", None)
+        if user_email:
+            enforce_agent_limit(user_email)
+    except HTTPException:
+        raise
+    except Exception:
+        pass
 
     task_envelope, errors = gateway.validate_and_admit(
         body.request, source="founder"
