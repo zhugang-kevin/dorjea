@@ -1,21 +1,12 @@
 import os
 import json
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
+import resend
 from datetime import datetime
 from fastapi import APIRouter
 from pydantic import BaseModel
 from typing import Optional
 
 router = APIRouter(prefix="/notifications", tags=["Notifications"])
-
-SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
-SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
-SMTP_USER = os.getenv("SMTP_USER", "")
-SMTP_PASS = os.getenv("SMTP_PASS", "")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@dorjea.com")
-FROM_NAME = os.getenv("FROM_NAME", "Dorjea AI Factory")
 
 NOTIFICATIONS_FILE = "memory/notifications.jsonl"
 
@@ -24,43 +15,51 @@ def save_notification(record):
         f.write(json.dumps(record) + "\n")
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: str = "") -> bool:
-    if not SMTP_USER or not SMTP_PASS:
-        print(f"[EMAIL SKIPPED - no SMTP config] To: {to_email} | Subject: {subject}")
+    """Send an email via the Resend API."""
+    api_key = os.getenv("RESEND_API_KEY", "")
+
+    if not api_key:
+        print(f"[EMAIL SKIPPED - no RESEND_API_KEY] To: {to_email} | Subject: {subject}")
         save_notification({
             "to": to_email, "subject": subject,
-            "status": "skipped_no_smtp",
+            "status": "skipped_no_resend_key",
             "timestamp": datetime.utcnow().isoformat()
         })
         return False
+
     try:
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = f"{FROM_NAME} <{FROM_EMAIL}>"
-        msg["To"] = to_email
+        resend.api_key = api_key
+        from_address = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+        from_name = os.getenv("FROM_NAME", "Dorjea AI Factory")
+
+        params = {
+            "from": from_name + " <" + from_address + ">",
+            "to": [to_email],
+            "subject": subject,
+            "html": html_body,
+        }
         if text_body:
-            msg.attach(MIMEText(text_body, "plain"))
-        msg.attach(MIMEText(html_body, "html"))
-        use_ssl = os.getenv('SMTP_USE_SSL', 'false').lower() == 'true'
-        if use_ssl:
-            with smtplib.SMTP_SSL(SMTP_HOST, SMTP_PORT) as server:
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
-        else:
-            with smtplib.SMTP(SMTP_HOST, SMTP_PORT) as server:
-                server.starttls()
-                server.login(SMTP_USER, SMTP_PASS)
-                server.sendmail(FROM_EMAIL, to_email, msg.as_string())
+            params["text"] = text_body
+
+        email = resend.Emails.send(params)
+
         save_notification({
-            "to": to_email, "subject": subject,
+            "to": to_email,
+            "subject": subject,
             "status": "sent",
+            "email_id": str(email.get("id", "")),
             "timestamp": datetime.utcnow().isoformat()
         })
+        print(f"[EMAIL SENT via Resend] To: {to_email} | Subject: {subject}")
         return True
+
     except Exception as e:
         print(f"[EMAIL ERROR] {e}")
         save_notification({
-            "to": to_email, "subject": subject,
-            "status": "failed", "error": str(e),
+            "to": to_email,
+            "subject": subject,
+            "status": "failed",
+            "error": str(e),
             "timestamp": datetime.utcnow().isoformat()
         })
         return False
@@ -217,7 +216,7 @@ def test_notification(req: TestEmailRequest):
         result = send_ticket_confirmation_email(req.to_email, req.name, "TKT-TEST01", "Test issue", "24 hours")
     else:
         result = send_welcome_email(req.to_email, req.name, "free")
-    return {"sent": result, "note": "Check SMTP_USER and SMTP_PASS env vars if email not received"}
+    return {"sent": result, "note": "Check RESEND_API_KEY env var if email not received"}
 
 @router.get("/history")
 def get_notification_history():
