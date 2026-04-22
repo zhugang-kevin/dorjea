@@ -6,11 +6,16 @@ import asyncio
 from datetime import datetime, timedelta
 from typing import Optional
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from agents.meta_agent.plan_enforcement import require_feature
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/monitor", tags=["Real-Time Monitoring"])
+router = APIRouter(
+    prefix="/monitor",
+    tags=["Real-Time Monitoring"],
+    dependencies=[Depends(require_feature("monitor"))],
+)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 MONITOR_FILE = os.path.join(_BASE, "memory", "agent_monitor.jsonl")

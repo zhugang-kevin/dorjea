@@ -11,7 +11,7 @@ class PolicyEngine:
 
     def get_token_budget(self, task_type="default"):
         budgets = self.policy.get("token_budgets", {})
-        return budgets.get(task_type, budgets.get("default", 20000))
+        return budgets.get(task_type, budgets.get("default", 10000))
 
     def get_retry_policy(self):
         return self.policy.get("retry_policy", {"max_attempts": 3, "backoff_seconds": 2})

@@ -859,4 +859,5 @@ class TestAgent533F2C55:
             "- Detect and respond to all escalation triggers promptly, packaging full context for "
             "the receiving supervisor.\n"
             "- Maintain version and configuration integrity by reading from registry at initialization "
-            "
+            "and validating checksums before use.\n"
+        )

@@ -6,11 +6,16 @@ import asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
+from agents.meta_agent.plan_enforcement import require_feature
 from pydantic import BaseModel
 from typing import Optional, List
 
-router = APIRouter(prefix="/tools", tags=["Tool Integrations"])
+router = APIRouter(
+    prefix="/tools",
+    tags=["Tool Integrations"],
+    dependencies=[Depends(require_feature("tools_integrations"))],
+)
 TOOL_LOGS_FILE = "memory/tool_logs.jsonl"
 
 def log_tool_use(tool: str, user_email: str, input_summary: str, output_summary: str, success: bool):

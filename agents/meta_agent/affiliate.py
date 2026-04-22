@@ -1,8 +1,6 @@
 import json, secrets, hashlib
 from datetime import datetime
 from pathlib import Path
-from agents.meta_agent.auth import load_users, save_user
-
 AFFILIATES_DB = Path("memory/affiliates.jsonl")
 REFERRALS_DB = Path("memory/referrals.jsonl")
 

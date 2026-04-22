@@ -5,7 +5,12 @@ FastMCP 3.x API.
 """
 from __future__ import annotations
 import os
+import sys
 import json
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
+
 from fastmcp import FastMCP
 from agents.meta_agent.registry import (
     agent_exists,
@@ -15,7 +20,7 @@ from agents.meta_agent.registry import (
     update_agent_status,
 )
 
-mcp = FastMCP("dorjea-registry")
+mcp = FastMCP("yuancore-registry")
 
 
 @mcp.tool()

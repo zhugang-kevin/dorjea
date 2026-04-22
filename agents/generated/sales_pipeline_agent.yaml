@@ -13,5 +13,5 @@ mission: Manages the sales pipeline by tracking deals, qualifying leads, and dra
 retry_policy:
   backoff_seconds: 2
   max_attempts: 3
-token_budget: 15000
+token_budget: 7500
 version: 1.0.0

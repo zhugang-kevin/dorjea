@@ -1,33 +1,38 @@
-# Token Budget — Dorjea AI Factory
+# Token 配额说明 — 元芯智能
 
-## Per-Task Budget
-Maximum tokens per agent creation: 20,000
-Daily total budget: 100,000
+## 单次任务与每日上限
 
-## Cost Estimates (Claude Sonnet 4.6)
-| Node | Estimated Tokens |
-|---|---|
-| parse_request | 500-1,000 |
-| validate_spec | 100-200 |
-| check_registry | 50-100 |
-| generate_spec | 2,000-4,000 |
-| verify_spec | 1,500-3,000 |
-| generate_code | 3,000-6,000 |
-| run_tests | 200-500 |
-| register_agent | 50-100 |
-| return_report | 100-200 |
-| TOTAL | 7,500-15,100 |
+- Meta-Agent 创建智能体单次任务硬上限：**10,000 tokens**（原 20,000 减半）
+- 系统每日令牌总预算（环境变量 `DAILY_TOKEN_BUDGET`）：**50,000 tokens**（原 100,000 减半）
+- 单次任务环境上限（`MAX_TOKENS_PER_TASK`）：**10,000**
 
-## Cost Per Agent Creation
-Estimated: USD 0.15 - 0.35 per agent
+## 各角色预算（policy.yaml）
 
-## Monitoring
-- Metrics log: logs/metrics.jsonl
-- Health endpoint: GET /health
-- Metrics endpoint: GET /metrics
+| 角色 | 每日/任务预算（tokens） |
+|------|-------------------------|
+| meta_agent | 10,000 |
+| research_agent | 7,500 |
+| coding_agent | 10,000 |
+| marketing_agent | 5,000 |
+| support_agent | 2,500 |
+| daily_total（策略文件中的规划上限） | 50,000 |
 
-## Rules
-- Hard ceiling: 20,000 tokens per task
-- If exceeded: halt, save checkpoint, request approval
-- Daily budget: 100,000 tokens
-- If exceeded: API returns 429 until next day
+## 套餐每日额度（与 `auth.PLAN_LIMITS` 一致）
+
+| 套餐 | 每日 tokens |
+|------|-------------|
+| 免费版 | 5,000 |
+| 专业版 | 50,000 |
+| 商业版 | 150,000 |
+| 企业版 | 500,000 |
+
+## 监控
+
+- 指标日志：`logs/metrics.jsonl`
+- 健康检查：`GET /health`
+- 用量概览：`GET /metrics`
+
+## 规则
+
+- 单次任务超过硬上限：中止并记录，需调整任务或提升配额策略
+- 当日系统总预算用尽：相关 API 可返回 429，直至次日重置（以服务端策略为准）

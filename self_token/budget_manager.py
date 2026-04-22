@@ -4,8 +4,8 @@ from datetime import datetime
 from pathlib import Path
 
 METRICS_PATH = Path(os.getenv("METRICS_LOG_PATH", "logs/metrics.jsonl"))
-MAX_TOKENS_PER_TASK = int(os.getenv("MAX_TOKENS_PER_TASK", "20000"))
-DAILY_BUDGET = int(os.getenv("DAILY_TOKEN_BUDGET", "100000"))
+MAX_TOKENS_PER_TASK = int(os.getenv("MAX_TOKENS_PER_TASK", "10000"))
+DAILY_BUDGET = int(os.getenv("DAILY_TOKEN_BUDGET", "50000"))
 
 
 def track_tokens(agent_id, task_id, model, prompt_tokens, completion_tokens):

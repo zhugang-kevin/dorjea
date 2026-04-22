@@ -942,4 +942,15 @@ class SalesPipelineAgent:
         Returns:
             bool: True if successful, False otherwise
         """
-        try
+        try:
+            base = os.path.join("memory", "pipeline_reports")
+            os.makedirs(base, exist_ok=True)
+            path = os.path.join(
+                base,
+                f"report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.txt",
+            )
+            with open(path, "w", encoding="utf-8") as fh:
+                fh.write(report)
+            return True
+        except Exception:
+            return False

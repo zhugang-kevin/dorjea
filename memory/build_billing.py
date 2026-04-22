@@ -42,8 +42,8 @@ PLAN_PRICES = {
 PLAN_DETAILS = {
     "free":         {"name":"Starter","daily_tokens":5000,"max_agents":3,"max_clones":0},
     "professional": {"name":"Professional","daily_tokens":50000,"max_agents":20,"max_clones":1},
-    "business":     {"name":"Business","daily_tokens":250000,"max_agents":100,"max_clones":3},
-    "enterprise":   {"name":"Enterprise","daily_tokens":1000000,"max_agents":500,"max_clones":10},
+    "business":     {"name":"Business","daily_tokens":150000,"max_agents":100,"max_clones":3},
+    "enterprise":   {"name":"Enterprise","daily_tokens":500000,"max_agents":500,"max_clones":10},
 }
 
 class RefundRequest(BaseModel):

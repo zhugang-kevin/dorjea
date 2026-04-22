@@ -21,7 +21,7 @@ def test_task_spec_valid():
         founder_request="Create a test agent for testing purposes.",
     )
     assert spec.agent_name == "test_agent"
-    assert spec.token_budget == 20000
+    assert spec.token_budget == 10000
 
 
 def test_task_spec_name_normalised():

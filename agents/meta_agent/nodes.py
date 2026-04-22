@@ -23,8 +23,7 @@ from agents.meta_agent.models import (
 )
 from agents.meta_agent.audit_logger import write_audit_entry
 from agents.meta_agent.registry import agent_exists, register_agent as db_register_agent
-from agents.runtime.ai_clients import ClaudeClient, OpenAIClient
-from agents.runtime.model_router import call_with_fallback as routed_call
+from agents.runtime.ai_clients import PrimaryChatClient, AIChatRequest
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from agents.meta_agent.manifest_manager import save_manifest
@@ -40,6 +39,7 @@ from agents.meta_agent.prompts import (
 )
 from self_governance.policy_engine import policy_engine
 from self_defence.rate_limiter import rate_limiter
+from agents.runtime.reliability import ReliabilityPolicy, call_with_reliability
 
 load_dotenv()
 
@@ -47,8 +47,15 @@ SCHEMAS_DIR = Path("tools/schemas")
 SPECS_DIR = Path("agents/specs")
 GENERATED_DIR = Path("agents/generated")
 
-claude = ClaudeClient()
-openai_client = OpenAIClient()
+primary_llm = PrimaryChatClient()
+
+
+def _json_validator(text: str) -> list[str]:
+    try:
+        json.loads(text.strip())
+    except Exception as exc:
+        return [f"模型输出不是合法 JSON：{exc!s}"]
+    return []
 
 
 def _load_schema(schema_name: str) -> dict:
@@ -82,7 +89,7 @@ def _audit(state: MetaAgentState, node: str, summary: str, success: bool = True)
 def parse_request(state: MetaAgentState) -> dict:
     """
     Node 1: Convert founder plain-English request into a typed TaskSpec.
-    Uses Claude to extract structured fields from natural language.
+    Uses the primary domestic LLM to extract structured fields from natural language.
     Sets should_stop=True if parsing fails.
     """
     founder_request = state.get("founder_request", "")
@@ -109,7 +116,7 @@ def parse_request(state: MetaAgentState) -> dict:
         }
 
     system = (
-        "You are a precise task parser for an AI agent factory. "
+        "You are a precise task parser for 元芯智能 agent tooling. "
         "Extract structured information from the founder request. "
         "Respond with valid JSON only. No explanation. No markdown."
     )
@@ -118,8 +125,8 @@ Extract the following fields from this founder request and return as JSON:
 - agent_name: short snake_case name (e.g. content_writer_agent)
 - agent_role: one-line role title
 - agent_mission: 2-3 sentence mission statement
-- allowed_tools: list of tools this agent needs (choose from: filesystem_server, registry_server, github_server, web_search, email, calendar)
-- token_budget: integer between 5000 and 20000
+- allowed_tools: list of tools this agent needs (choose from: filesystem_server, registry_server, web_search, email, calendar)
+- token_budget: integer between 5000 and 10000
 - department: one of engineering, marketing, finance, operations, research, sales, legal, hr, general
 - founder_request: repeat the original request exactly
 
@@ -134,16 +141,24 @@ Return only valid JSON. No markdown. No explanation.
             "should_stop": True,
         }
 
-    result = claude.call(prompt, system=system)
-    if result["error"]:
-        _audit(state, "parse_request", f"Claude error: {result['error']}", success=False)
+    reliable = call_with_reliability(
+        request=AIChatRequest(prompt=prompt, system=system),
+        task_id=state.get("task_id", "parse_request"),
+        agent_id="meta_agent_parse_request",
+        client=primary_llm,
+        policy=ReliabilityPolicy(require_json=True, min_output_chars=32, min_confidence=0.6),
+        validator=_json_validator,
+    )
+    result = reliable.response
+    if result.error:
+        _audit(state, "parse_request", f"主模型错误: {result.error}", success=False)
         return {
-            "current_error": f"parse_request failed: {result['error']}",
+            "current_error": f"parse_request failed: {result.error}",
             "should_stop": True,
         }
 
     try:
-        raw = result["text"].strip()
+        raw = result.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -153,7 +168,7 @@ Return only valid JSON. No markdown. No explanation.
             founder_request=founder_request,
             **{k: v for k, v in data.items() if k != "founder_request"},
         )
-        tokens = result["total_tokens"]
+        tokens = result.total_tokens
         _audit(state, "parse_request", f"Parsed TaskSpec for agent: {task_spec.agent_name}")
         return {
             "task_spec": task_spec,
@@ -246,7 +261,7 @@ def check_registry(state: MetaAgentState) -> dict:
 
 def generate_spec(state: MetaAgentState) -> dict:
     """
-    Node 4: Use Claude to generate a complete AgentSpec from the TaskSpec.
+    Node 4: Use the primary domestic LLM to generate a complete AgentSpec from the TaskSpec.
     Produces a full specification including responsibilities, tools, and policies.
     """
     if state.get("should_stop"):
@@ -257,30 +272,38 @@ def generate_spec(state: MetaAgentState) -> dict:
         return {"current_error": "No TaskSpec in state.", "should_stop": True}
 
     user_msg = build_generate_spec_user_message(task_spec, [])
-    result = claude.call(
-        user_msg,
-        system=GENERATE_SPEC_SYSTEM,
-        max_tokens=2000,
+    reliable = call_with_reliability(
+        request=AIChatRequest(
+            prompt=user_msg,
+            system=GENERATE_SPEC_SYSTEM,
+            max_tokens=2000,
+        ),
+        task_id=state.get("task_id", "generate_spec"),
+        agent_id=task_spec.agent_name,
+        client=primary_llm,
+        policy=ReliabilityPolicy(require_json=True, min_output_chars=64, min_confidence=0.6),
+        validator=_json_validator,
     )
+    result = reliable.response
     save_execution_record(
         task_id=state.get("task_id", "unknown"),
         agent_id=task_spec.agent_name,
         node_name="generate_spec",
-        model=claude.model,
+        model=primary_llm.model,
         system_prompt=GENERATE_SPEC_SYSTEM,
         user_prompt=user_msg,
-        output=result.get("text", ""),
-        tokens_used=result.get("total_tokens", 0),
+        output=result.text,
+        tokens_used=result.total_tokens,
     )
-    if result["error"]:
-        _audit(state, "generate_spec", f"Claude error: {result['error']}", success=False)
+    if result.error:
+        _audit(state, "generate_spec", f"主模型错误: {result.error}", success=False)
         return {
-            "current_error": f"generate_spec failed: {result['error']}",
+            "current_error": f"generate_spec failed: {result.error}",
             "should_stop": True,
         }
 
     try:
-        raw = result["text"].strip()
+        raw = result.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
@@ -293,7 +316,7 @@ def generate_spec(state: MetaAgentState) -> dict:
         data = json.loads(raw)
         agent_spec = AgentSpec(**data)
         spec_yaml = yaml.dump(data, default_flow_style=False)
-        tokens = result["total_tokens"]
+        tokens = result.total_tokens
         _audit(state, "generate_spec", f"AgentSpec generated for: {agent_spec.agent_name}")
         return {
             "agent_spec": agent_spec,
@@ -315,7 +338,7 @@ def generate_spec(state: MetaAgentState) -> dict:
 def verify_spec(state: MetaAgentState) -> dict:
     """
     Node 5: Verify the generated AgentSpec.
-    Currently uses Claude as self-review. GPT-4o verification added in Phase 2.
+    Uses the primary domestic LLM as self-review.
     Returns CONDITIONAL to allow pipeline to continue.
     """
     if state.get("should_stop"):
@@ -339,7 +362,7 @@ Return JSON with these exact fields:
 - status: one of "PASS", "CONDITIONAL", "FAIL"
 - issues: list of problems found (empty list if none)
 - suggestions: list of improvement suggestions (empty list if none)
-- verified_by: "claude-self-review"
+- verified_by: "domestic-self-review"
 
 PASS = spec is complete, safe, and well-defined.
 CONDITIONAL = spec has minor issues but can proceed.
@@ -347,8 +370,16 @@ FAIL = spec has critical problems and must be regenerated.
 
 Return only valid JSON. No markdown. No explanation.
 """
-    result = claude.call(prompt, system=system, max_tokens=1000)
-    if result["error"]:
+    reliable = call_with_reliability(
+        request=AIChatRequest(prompt=prompt, system=system, max_tokens=1000),
+        task_id=state.get("task_id", "verify_spec"),
+        agent_id=agent_spec.agent_name,
+        client=primary_llm,
+        policy=ReliabilityPolicy(require_json=True, min_output_chars=32, min_confidence=0.55),
+        validator=_json_validator,
+    )
+    result = reliable.response
+    if result.error:
         verification = VerificationResult(
             status="CONDITIONAL",
             issues=["Verifier unavailable — proceeding with caution."],
@@ -363,14 +394,14 @@ Return only valid JSON. No markdown. No explanation.
         }
 
     try:
-        raw = result["text"].strip()
+        raw = result.text.strip()
         if raw.startswith("```"):
             raw = raw.split("```")[1]
             if raw.startswith("json"):
                 raw = raw[4:]
         data = json.loads(raw.strip())
         verification = VerificationResult(**data)
-        tokens = result["total_tokens"]
+        tokens = result.total_tokens
         success = verification.status != "FAIL"
         _audit(
             state, "verify_spec",
@@ -402,7 +433,7 @@ Return only valid JSON. No markdown. No explanation.
 
 def generate_code(state: MetaAgentState) -> dict:
     """
-    Node 6: Use Claude to write the Python agent file and YAML config.
+    Node 6: Use the primary domestic LLM to write the Python agent file and YAML config.
     Saves both files to agents/generated/ folder.
     """
     if state.get("should_stop"):
@@ -435,20 +466,27 @@ Requirements:
 - Proper docstrings on every method
 - try/except around every external call
 - No placeholders, no TODO comments
-- Import only from standard library and these packages: anthropic, openai, pydantic
+- Import only from standard library and these packages: httpx, pydantic
 
 Return only the complete Python code. No explanation. No markdown fences.
 """
-    result = claude.call(prompt, system=system, max_tokens=3000)
-    if result["error"]:
-        _audit(state, "generate_code", f"Claude error: {result['error']}", success=False)
+    reliable = call_with_reliability(
+        request=AIChatRequest(prompt=prompt, system=system, max_tokens=3000),
+        task_id=state.get("task_id", "generate_code"),
+        agent_id=agent_spec.agent_name,
+        client=primary_llm,
+        policy=ReliabilityPolicy(require_json=False, min_output_chars=120, min_confidence=0.5),
+    )
+    result = reliable.response
+    if result.error:
+        _audit(state, "generate_code", f"主模型错误: {result.error}", success=False)
         return {
-            "current_error": f"generate_code failed: {result['error']}",
+            "current_error": f"generate_code failed: {result.error}",
             "should_stop": True,
         }
 
     try:
-        generated_code = result["text"].strip()
+        generated_code = result.text.strip()
         if generated_code.startswith("```"):
             generated_code = generated_code.split("```")[1]
             if generated_code.startswith("python"):
@@ -475,7 +513,7 @@ Return only the complete Python code. No explanation. No markdown fences.
         code_path.write_text(generated_code, encoding="utf-8")
         config_path.write_text(generated_config, encoding="utf-8")
 
-        tokens = result["total_tokens"]
+        tokens = result.total_tokens
         _audit(state, "generate_code", f"Code generated: {code_path}")
         return {
             "generated_code": generated_code,
@@ -694,7 +732,7 @@ def return_report(state: MetaAgentState) -> dict:
 
     rollback = (
         f"python agents\\meta_agent\\registry.py --freeze {agent_name}  "
-        f"-- or: git revert HEAD to undo all file changes"
+        f"或通过本地版本管理撤销相关文件变更"
     )
 
     report = FounderReport(

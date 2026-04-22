@@ -175,8 +175,8 @@ def _i17(agent: dict, existing: list) -> dict:
         tb = int(raw)
     except (TypeError, ValueError):
         return _fail(17, f"token_budget '{raw}' is not a valid integer.")
-    if not (500 <= tb <= 100000):
-        return _fail(17, f"token_budget {tb} is outside allowed range 500–100000.")
+    if not (500 <= tb <= 10000):
+        return _fail(17, f"token_budget {tb} is outside allowed range 500–10000.")
     return _pass(17, f"token_budget {tb} is within range.")
 
 
@@ -310,7 +310,7 @@ _INVARIANT_DESCRIPTIONS = [
     (14, "decision",    "Agent must have at least 2 quality standards."),
     (15, "decision",    "Agent must have at least 2 boundaries defined."),
     (16, "safety",      "Agent must never have an empty boundaries field."),
-    (17, "safety",      "Agent token_budget must be between 500 and 100000."),
+    (17, "safety",      "Agent token_budget must be between 500 and 10000."),
     (18, "safety",      "Agent must not claim to be human in its role definition."),
     (19, "safety",      "Agent boundaries must include at least one 'never' statement."),
     (20, "safety",      "Agent quality field must not be empty."),

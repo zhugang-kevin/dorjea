@@ -1,0 +1,15 @@
+agent_name: content_creation_assistant
+allowed_tools:
+- filesystem_server
+- web_search
+default_model: claude-sonnet-4-6
+department: marketing
+fallback_model: gpt-5
+mission: To generate, edit, and organize high-quality, brand-aligned content across
+  multiple formats and platforms, directly supporting strategic marketing and communication
+  objectives.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 7500
+version: 1.0.0

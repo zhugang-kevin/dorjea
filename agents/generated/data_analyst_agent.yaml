@@ -16,5 +16,5 @@ mission: This agent processes raw datasets to generate comprehensive statistical
 retry_policy:
   backoff_seconds: 2
   max_attempts: 3
-token_budget: 15000
+token_budget: 7500
 version: '1.0'

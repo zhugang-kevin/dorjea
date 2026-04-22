@@ -12,7 +12,7 @@ class TaskSpec(BaseModel):
     agent_role: str
     agent_mission: str
     allowed_tools: List[str]
-    token_budget: int = 20000
+    token_budget: int = 10000
     department: str = "general"
     founder_request: str
 
@@ -34,8 +34,8 @@ class TaskSpec(BaseModel):
     @classmethod
     def validate_token_budget(cls, v: int) -> int:
         """Ensure token budget does not exceed system maximum."""
-        if v > 20000:
-            raise ValueError("token_budget cannot exceed 20000")
+        if v > 10000:
+            raise ValueError("token_budget cannot exceed 10000")
         return v
 
 
@@ -169,3 +169,13 @@ class MetaAgentState(BaseModel):
     def set_session_id(cls, v: str) -> str:
         """Auto-generate session_id if not provided."""
         return v or str(uuid.uuid4())
+
+
+async def init_db() -> None:
+    """应用启动时初始化可选本地数据库结构（失败则忽略）。"""
+    try:
+        from agents.meta_agent.sqlite_app_db import init_sqlite_schema
+
+        init_sqlite_schema()
+    except Exception:
+        pass

@@ -4,12 +4,22 @@ import os
 import secrets
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header, UploadFile, File
+from agents.meta_agent.plan_enforcement import require_feature, parse_bearer_email
 from pydantic import BaseModel, field_validator
 
-router = APIRouter(prefix="/memory", tags=["memory"])
+router = APIRouter(
+    prefix="/memory",
+    tags=["memory"],
+    dependencies=[Depends(require_feature("memory_knowledge"))],
+)
 
-MEMORY_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "memory", "agent_memory.jsonl")
+_BASE_MEM = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+MEMORY_FILE = os.path.join(_BASE_MEM, "memory", "agent_memory.jsonl")
+KNOWLEDGE_INDEX = os.path.join(_BASE_MEM, "memory", "knowledge_documents.jsonl")
+KNOWLEDGE_DIR = os.path.join(_BASE_MEM, "memory", "knowledge_uploads")
+MAX_KNOWLEDGE_MB = 10
+KNOWLEDGE_EXT = {".txt", ".docx", ".pdf"}
 
 VALID_TYPES = {
     "task_result", "key_learning", "customer_preference",
@@ -68,6 +78,34 @@ def _append(record: dict) -> None:
 def _new_id() -> str:
     """Generate a unique memory_id."""
     return "mem_" + secrets.token_hex(8)
+
+
+def _load_knowledge_index_all() -> list[dict]:
+    if not os.path.exists(KNOWLEDGE_INDEX):
+        return []
+    rows: list[dict] = []
+    with open(KNOWLEDGE_INDEX, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if line:
+                try:
+                    rows.append(json.loads(line))
+                except json.JSONDecodeError:
+                    pass
+    return rows
+
+
+def _save_knowledge_index_all(rows: list[dict]) -> None:
+    os.makedirs(os.path.dirname(KNOWLEDGE_INDEX), exist_ok=True)
+    with open(KNOWLEDGE_INDEX, "w", encoding="utf-8") as f:
+        for r in rows:
+            f.write(json.dumps(r, ensure_ascii=False) + "\n")
+
+
+def _append_knowledge_row(row: dict) -> None:
+    os.makedirs(os.path.dirname(KNOWLEDGE_INDEX), exist_ok=True)
+    with open(KNOWLEDGE_INDEX, "a", encoding="utf-8") as f:
+        f.write(json.dumps(row, ensure_ascii=False) + "\n")
 
 
 # ── request models ─────────────────────────────────────────────────────────
@@ -277,3 +315,88 @@ def clear_memories(agent_id: str, user_email: str) -> dict:
 def list_memory_types() -> dict:
     """Return all valid memory types with metadata."""
     return {"types": MEMORY_TYPE_DEFS}
+
+
+# ── 控制台知识库（上传的文档索引，与 agent 向量记忆独立）────────────────
+
+
+@router.get("/")
+def list_knowledge_documents(authorization: str | None = Header(None)) -> dict:
+    """当前用户已上传的知识文档列表（GET /memory/）。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    items = [r for r in _load_knowledge_index_all() if r.get("user_email") == email]
+    return {"items": items, "total": len(items)}
+
+
+@router.post("/upload")
+async def upload_knowledge_document(
+    authorization: str | None = Header(None),
+    file: UploadFile = File(...),
+) -> dict:
+    """上传 .txt / .docx / .pdf 到知识库。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    raw_name = file.filename or "upload"
+    ext = os.path.splitext(raw_name)[1].lower()
+    if ext not in KNOWLEDGE_EXT:
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的格式 {ext or '(无扩展名)'}，仅支持 {', '.join(sorted(KNOWLEDGE_EXT))}",
+        )
+    content = await file.read()
+    size_mb = len(content) / (1024 * 1024)
+    if size_mb > MAX_KNOWLEDGE_MB:
+        raise HTTPException(
+            status_code=400,
+            detail=f"文件过大（{size_mb:.1f} MB），上限 {MAX_KNOWLEDGE_MB} MB",
+        )
+    os.makedirs(KNOWLEDGE_DIR, exist_ok=True)
+    doc_id = secrets.token_hex(16)
+    safe_name = f"{doc_id}{ext}"
+    disk_path = os.path.join(KNOWLEDGE_DIR, safe_name)
+    with open(disk_path, "wb") as f:
+        f.write(content)
+    row = {
+        "id": doc_id,
+        "user_email": email,
+        "filename": raw_name,
+        "size_kb": round(len(content) / 1024, 1),
+        "agent_name": "未关联",
+        "uploaded_at": datetime.utcnow().isoformat(),
+        "file_path": disk_path,
+    }
+    _append_knowledge_row(row)
+    return {
+        "success": True,
+        "id": doc_id,
+        "filename": raw_name,
+        "size_kb": row["size_kb"],
+        "message": "文件上传成功，正在建立索引...",
+    }
+
+
+@router.delete("/documents/{doc_id}")
+def delete_knowledge_document(doc_id: str, authorization: str | None = Header(None)) -> dict:
+    """删除一条知识库文档记录及磁盘文件。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    all_rows = _load_knowledge_index_all()
+    target = next(
+        (r for r in all_rows if r.get("id") == doc_id and r.get("user_email") == email),
+        None,
+    )
+    if not target:
+        raise HTTPException(status_code=404, detail="文档不存在")
+    fp = target.get("file_path")
+    if isinstance(fp, str) and os.path.isfile(fp):
+        try:
+            os.remove(fp)
+        except OSError:
+            pass
+    kept = [r for r in all_rows if not (r.get("id") == doc_id and r.get("user_email") == email)]
+    _save_knowledge_index_all(kept)
+    return {"success": True, "message": "文档已删除"}

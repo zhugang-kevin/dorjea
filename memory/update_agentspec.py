@@ -9,7 +9,7 @@ old = '''class AgentSpec(BaseModel):
     responsibilities: List[str]
     non_responsibilities: List[str]
     allowed_tools: List[str]
-    token_budget: int = 20000
+    token_budget: int = 10000
     default_model: str = ""
     fallback_model: str = "gpt-4o"
     retry_policy: dict = {"max_attempts": 3, "backoff_seconds": 2}

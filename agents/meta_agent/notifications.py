@@ -1,8 +1,10 @@
 import os
 import json
-import resend
-from datetime import datetime
-from fastapi import APIRouter
+from datetime import datetime, timezone
+from fastapi import APIRouter, Header, HTTPException
+
+from agents.meta_agent.plan_enforcement import parse_bearer_email
+from agents.meta_agent.integrations import send_email_async, send_email as _send_email_sync
 from pydantic import BaseModel
 from typing import Optional
 
@@ -11,58 +13,20 @@ router = APIRouter(prefix="/notifications", tags=["Notifications"])
 NOTIFICATIONS_FILE = "memory/notifications.jsonl"
 
 def save_notification(record):
+    os.makedirs(os.path.dirname(NOTIFICATIONS_FILE), exist_ok=True)
     with open(NOTIFICATIONS_FILE, "a", encoding="utf-8") as f:
         f.write(json.dumps(record) + "\n")
 
 def send_email(to_email: str, subject: str, html_body: str, text_body: str = "") -> bool:
-    """Send an email via the Resend API."""
-    api_key = os.getenv("RESEND_API_KEY", "")
+    """Send email asynchronously (non-blocking) via integrations module."""
+    send_email_async(to_email, subject, html_body, text_body or None)
+    save_notification({
+        "to": to_email, "subject": subject,
+        "status": "queued",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    })
+    return True
 
-    if not api_key:
-        print(f"[EMAIL SKIPPED - no RESEND_API_KEY] To: {to_email} | Subject: {subject}")
-        save_notification({
-            "to": to_email, "subject": subject,
-            "status": "skipped_no_resend_key",
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        return False
-
-    try:
-        resend.api_key = api_key
-        from_address = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
-        from_name = os.getenv("FROM_NAME", "Dorjea AI Factory")
-
-        params = {
-            "from": from_name + " <" + from_address + ">",
-            "to": [to_email],
-            "subject": subject,
-            "html": html_body,
-        }
-        if text_body:
-            params["text"] = text_body
-
-        email = resend.Emails.send(params)
-
-        save_notification({
-            "to": to_email,
-            "subject": subject,
-            "status": "sent",
-            "email_id": str(email.get("id", "")),
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        print(f"[EMAIL SENT via Resend] To: {to_email} | Subject: {subject}")
-        return True
-
-    except Exception as e:
-        print(f"[EMAIL ERROR] {e}")
-        save_notification({
-            "to": to_email,
-            "subject": subject,
-            "status": "failed",
-            "error": str(e),
-            "timestamp": datetime.utcnow().isoformat()
-        })
-        return False
 
 def _base_template(content: str, title: str) -> str:
     return f"""
@@ -139,6 +103,37 @@ def send_budget_warning_email(to_email: str, name: str, percent_used: float, tok
       </a>"""
     return send_email(to_email, "Dorjea: 80% of your daily token budget used", _base_template(content, "Token Budget Warning"))
 
+def send_payment_confirmation_email_zh(
+    to_email: str, name: str, plan_name_zh: str, amount_cny: float, order_id: str = ""
+) -> bool:
+    """支付成功后的中文确认邮件（依赖 RESEND_API_KEY 等环境变量）。"""
+    oid = f"<p style=\"margin:0 0 8px;color:#15803d;\"><strong>订单号：</strong> {order_id}</p>" if order_id else ""
+    content = f"""
+      <h2 style="color:#16a34a;font-size:24px;margin:0 0 16px;">支付成功</h2>
+      <p style="color:#6b6b80;line-height:1.7;margin:0 0 20px;">
+        尊敬的 {name}，您已成功完成付款，套餐已生效。
+      </p>
+      <div style="background:#f0fdf4;border-radius:10px;padding:20px;margin:0 0 24px;border:1px solid #86efac;">
+        <p style="margin:0 0 8px;color:#15803d;"><strong>套餐：</strong> {plan_name_zh}</p>
+        <p style="margin:0 0 8px;color:#15803d;"><strong>金额：</strong> ¥{amount_cny:.2f}</p>
+        {oid}
+        <p style="margin:0;color:#15803d;"><strong>状态：</strong> 已开通</p>
+      </div>
+      <a href="/account"
+         style="display:inline-block;padding:14px 32px;background:#2563eb;color:#fff;
+                border-radius:10px;text-decoration:none;font-weight:700;font-size:15px;">
+        前往账户总览 →
+      </a>
+      <p style="color:#6b6b80;font-size:13px;margin:24px 0 0;">
+        如需帮助，请联系 <a href="mailto:support@yuancore.cn" style="color:#2563eb;">support@yuancore.cn</a>
+      </p>"""
+    return send_email(
+        to_email,
+        f"元芯智能：支付成功 — {plan_name_zh}",
+        _base_template(content, "支付成功"),
+    )
+
+
 def send_payment_confirmation_email(to_email: str, name: str, plan: str, amount: float) -> bool:
     content = f"""
       <h2 style="color:#16a34a;font-size:24px;margin:0 0 16px;">✓ Payment Confirmed</h2>
@@ -205,6 +200,51 @@ class TestEmailRequest(BaseModel):
     to_email: str
     type: str = "welcome"
     name: Optional[str] = "Test User"
+
+READ_STATE_FILE = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))), "memory", "notifications_read.jsonl")
+
+
+def _append_read_state(user_email: str, notif_id: str) -> None:
+    os.makedirs(os.path.dirname(READ_STATE_FILE), exist_ok=True)
+    with open(READ_STATE_FILE, "a", encoding="utf-8") as f:
+        f.write(
+            json.dumps(
+                {"user_email": user_email, "id": notif_id, "read_at": datetime.utcnow().isoformat()},
+                ensure_ascii=False,
+            )
+            + "\n"
+        )
+
+
+@router.get("")
+def list_user_notifications(authorization: str | None = Header(None)) -> dict:
+    """当前用户相关通知（GET /notifications）。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    if not os.path.exists(NOTIFICATIONS_FILE):
+        return {"notifications": [], "total": 0}
+    with open(NOTIFICATIONS_FILE, encoding="utf-8") as f:
+        records = [json.loads(l) for l in f if l.strip()]
+    mine = [
+        r
+        for r in records
+        if r.get("to") == email
+        or r.get("user_email") == email
+        or email in str(r.get("to_email", ""))
+    ]
+    return {"notifications": mine[-100:][::-1], "total": len(mine)}
+
+
+@router.post("/read/{notif_id}")
+def mark_notification_read(notif_id: str, authorization: str | None = Header(None)) -> dict:
+    """标记通知已读（POST /notifications/read/{id}）。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    _append_read_state(email, notif_id)
+    return {"success": True, "id": notif_id}
+
 
 @router.post("/test")
 def test_notification(req: TestEmailRequest):

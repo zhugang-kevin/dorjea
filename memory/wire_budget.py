@@ -32,7 +32,7 @@ def get_budget() -> dict:
     import os
     from dotenv import load_dotenv
     load_dotenv()
-    budget = int(os.getenv("DAILY_TOKEN_BUDGET", "100000"))
+    budget = int(os.getenv("DAILY_TOKEN_BUDGET", "50000"))
     used = get_daily_usage()
     return {
         "daily_budget": budget,

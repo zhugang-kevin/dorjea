@@ -4,16 +4,17 @@ from datetime import datetime
 from agents.meta_agent.registry import get_agent, update_agent_status
 from agents.meta_agent.audit_logger import write_audit_entry
 from agents.meta_agent.models import AuditEntry
-from agents.runtime.ai_clients import ClaudeClient
+from agents.runtime.ai_clients import PrimaryChatClient, AIChatRequest
 from self_defence.injection_detector import is_safe
 from self_token.budget_manager import track_tokens, is_within_budget
 from self_governance.policy_engine import policy_engine
 from agents.runtime.capability_sandbox import create_sandbox
 from agents.runtime.error_recovery import classify_error, execute_recovery, should_escalate_to_founder
 from agents.runtime.code_executor import execute_code, run_tests
+from agents.runtime.reliability import ReliabilityPolicy, call_with_reliability
 from self_monitoring.agent_performance import record_task_result
 
-claude = ClaudeClient()
+primary_llm = PrimaryChatClient()
 
 
 class AgentRuntime:
@@ -59,7 +60,7 @@ class AgentRuntime:
 
         sandbox = create_sandbox(agent_name)
         limits = sandbox.get_resource_limits()
-        token_budget = limits.get("max_tokens_per_task", agent.get("token_budget", 20000))
+        token_budget = limits.get("max_tokens_per_task", agent.get("token_budget", 10000))
 
         if sandbox.can_create_agents():
             pass
@@ -82,8 +83,8 @@ class AgentRuntime:
 
         mission = agent.get("mission", "")
         allowed_tools = agent.get("allowed_tools", "")
-        model = agent.get("default_model", os.getenv("PRIMARY_MODEL", "claude-sonnet-4-6"))
-        claude.model = model
+        model = agent.get("default_model", os.getenv("PRIMARY_MODEL", "deepseek-chat"))
+        primary_llm.model = model
 
         system_prompt = (
             "You are " + agent_name + "." + chr(10) +
@@ -95,49 +96,67 @@ class AgentRuntime:
 
         self._log(agent_name, task_id, "TASK_STARTED", {"instruction": task_instruction[:200]})
 
-        result = claude.call(task_instruction, system=system_prompt, max_tokens=token_budget // 4)
+        started_at = datetime.utcnow()
+        reliable = call_with_reliability(
+            request=AIChatRequest(
+                prompt=task_instruction,
+                system=system_prompt,
+                max_tokens=max(512, token_budget // 4),
+            ),
+            task_id=task_id,
+            agent_id=agent_name,
+            client=primary_llm,
+            policy=ReliabilityPolicy(
+                max_attempts=3,
+                retry_backoff_seconds=1.0,
+                min_output_chars=32,
+                fallback_to_router=True,
+                min_confidence=0.58,
+            ),
+        )
+        result = reliable.response
 
-        if result["error"]:
+        if result.error:
             recovery = execute_recovery(
                 agent_id=agent_name,
                 task_id=task_id,
-                error_message=result["error"],
+                error_message=result.error,
                 retry_count=0,
             )
             self._log(agent_name, task_id, "TASK_FAILED",
-                     {"error": result["error"],
+                     {"error": result.error,
                       "recovery_action": recovery["action"]}, success=False)
             return {
                 "status": "FAILED",
-                "error": result["error"],
+                "error": result.error,
                 "task_id": task_id,
                 "agent_name": agent_name,
                 "tokens_used": 0,
                 "recovery_action": recovery["action"],
                 "escalate_to_founder": recovery["should_escalate"],
+                "reliability": reliable.model_dump(),
             }
 
         track_tokens(
             agent_id=agent_name,
             task_id=task_id,
             model=model,
-            prompt_tokens=result["input_tokens"],
-            completion_tokens=result["output_tokens"],
+            prompt_tokens=result.input_tokens,
+            completion_tokens=result.output_tokens,
         )
 
-        elapsed = (datetime.utcnow() - datetime.fromisoformat(
-            datetime.utcnow().isoformat())).total_seconds()
+        elapsed = (datetime.utcnow() - started_at).total_seconds()
         record_task_result(
             agent_name=agent_name,
             task_id=task_id,
             success=True,
-            tokens_used=result["total_tokens"],
-            elapsed_seconds=0,
+            tokens_used=result.total_tokens,
+            elapsed_seconds=elapsed,
         )
-        output_text = result["text"]
+        output_text = result.text
 
         code_execution_result = None
-        output_text = result["text"]
+        output_text = result.text
         task_lower = task_instruction.lower()
         if "run this code" in task_lower or "execute this" in task_lower or "test this code" in task_lower:
             tick3 = chr(96) * 3
@@ -155,17 +174,18 @@ class AgentRuntime:
                     else:
                         output_text += chr(10) + chr(10) + "Execution Error:" + chr(10) + exec_result["error"]
         self._log(agent_name, task_id, "TASK_COMPLETED",
-                 {"tokens": result["total_tokens"], "output_preview": result["text"][:200]})
+                 {"tokens": result.total_tokens, "output_preview": result.text[:200], "confidence": reliable.confidence})
 
         return {
             "status": "SUCCESS",
             "task_id": task_id,
             "agent_name": agent_name,
             "output": output_text,
-            "tokens_used": result["total_tokens"],
+            "tokens_used": result.total_tokens,
             "model_used": model,
             "completed_at": datetime.utcnow().isoformat(),
             "code_execution": code_execution_result,
+            "reliability": reliable.model_dump(),
         }
 
 

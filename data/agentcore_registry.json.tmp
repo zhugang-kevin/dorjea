@@ -1,0 +1,18 @@
+[
+  {
+    "id": "5fb99d05-2c0b-455f-aa86-43fb506b8bc3",
+    "name": "status_agent_d5e18a55",
+    "mission": "Test mission.",
+    "status": "active",
+    "default_model": "claude-sonnet-4-6",
+    "fallback_model": "gpt-4o",
+    "allowed_tools": [
+      "filesystem_server"
+    ],
+    "token_budget": 5000,
+    "spec_yaml": "",
+    "department": "general",
+    "created_at": "2026-04-21T13:47:29.978504",
+    "updated_at": "2026-04-21T13:47:29.978504"
+  }
+]

@@ -6,8 +6,8 @@ from fastapi import HTTPException
 PLAN_LIMITS = {
     "free":         {"daily_tokens": 5000,   "max_agents": 3,   "max_clones": 0,  "price_usd": 0,  "trial_days": 3},
     "professional": {"daily_tokens": 50000,  "max_agents": 20,  "max_clones": 1,  "price_usd": 29},
-    "business":     {"daily_tokens": 250000, "max_agents": 100, "max_clones": 3,  "price_usd": 99},
-    "enterprise":   {"daily_tokens": 1000000,"max_agents": 500, "max_clones": 10, "price_usd": 0, "custom": True},
+    "business":     {"daily_tokens": 150000, "max_agents": 100, "max_clones": 3,  "price_usd": 99},
+    "enterprise":   {"daily_tokens": 500000,"max_agents": 500, "max_clones": 10, "price_usd": 0, "custom": True},
 }
 
 USERS_FILE = "memory/users.jsonl"

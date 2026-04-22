@@ -254,14 +254,14 @@ def _gate10_production_readiness(agent: dict) -> dict:
     tb_raw = agent.get("token_budget") or agent.get("spec", {}).get("token_budget")
     try:
         tb = int(tb_raw)
-        if 1000 <= tb <= 50000:
+        if 500 <= tb <= 10000:
             score += 4
             details_parts.append(f"token_budget valid ({tb}).")
         else:
-            recs.append(f"token_budget {tb} is outside recommended range 1000-50000.")
+            recs.append(f"token_budget {tb} is outside recommended range 500-10000.")
             details_parts.append(f"token_budget out of range ({tb}).")
     except (TypeError, ValueError):
-        recs.append("Set a numeric token_budget between 1000 and 50000.")
+        recs.append("Set a numeric token_budget between 500 and 10000.")
         details_parts.append("token_budget missing or non-numeric.")
 
     # department

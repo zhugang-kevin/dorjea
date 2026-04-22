@@ -9,7 +9,8 @@ ERROR_CATEGORIES = {
         "connection error", "timeout", "mcp", "server", "port"
     ],
     "model_failure": [
-        "api error", "rate limit", "authentication", "forbidden", "claude", "openai"
+        "api error", "rate limit", "authentication", "forbidden",
+        "llm", "大模型", "deepseek", "通义", "密钥",
     ],
     "data_error": [
         "validation", "schema", "json", "parse", "pydantic"

@@ -30,7 +30,7 @@ GENERATE_SPEC_SYSTEM = (
     'verification_logic (list of self-check questions min 4), '
     'observability (log fields and metrics to track), '
     'escalation_triggers (list of 4+ escalation conditions), '
-    'token_budget (integer 5000-20000), '
+    'token_budget (integer 5000-10000), '
     'default_model (claude-sonnet-4-6), '
     'fallback_model (gpt-5), '
     'memory_policy (session_only|persistent|none), '

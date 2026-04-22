@@ -1,69 +1,54 @@
-import os, stripe
+"""
+支付兼容层 — 元芯智能 AgentCore
+
+境外 Stripe 已移除。实际收款请使用 payment_cn 与主应用路由：
+POST /payment/wechat/create、POST /payment/alipay/create。
+本文件保留历史函数签名，供 /payments/checkout 等端点导入。
+"""
+from __future__ import annotations
+
 from datetime import datetime
-from agents.meta_agent.auth import load_users, save_user
 
-stripe.api_key = os.getenv("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET", "")
-PLAN_AMOUNTS_USD = {"professional": 4900, "business": 19900, "enterprise": 99900}
-PLAN_NAMES = {
-    "professional": "Dorjea Professional — 100,000 tokens/day",
-    "business": "Dorjea Business — 500,000 tokens/day",
-    "enterprise": "Dorjea Enterprise — Unlimited tokens/day",
-}
-
+from agents.meta_agent.auth import get_user, save_user
 def create_checkout_session(user_email, plan, success_url, cancel_url):
-    if not stripe.api_key:
-        return None, "Stripe not configured. Add STRIPE_SECRET_KEY to .env"
-    if plan not in PLAN_AMOUNTS_USD:
-        return None, "Invalid plan"
-    try:
-        session = stripe.checkout.Session.create(
-            payment_method_types=["card"],
-            line_items=[{"price_data": {"currency": "usd",
-                "product_data": {"name": PLAN_NAMES[plan]},
-                "unit_amount": PLAN_AMOUNTS_USD[plan],
-                "recurring": {"interval": "month"}}, "quantity": 1}],
-            mode="subscription",
-            customer_email=user_email,
-            success_url=success_url + "?session_id={CHECKOUT_SESSION_ID}&plan=" + plan,
-            cancel_url=cancel_url,
-            metadata={"user_email": user_email, "plan": plan},
-        )
-        return session, None
-    except Exception as e:
-        return None, str(e)
+    """不再创建 Stripe Checkout；返回错误说明，引导调用境内支付接口。"""
+    _ = (user_email, plan, success_url, cancel_url)
+    return None, (
+        "境外卡收款已停用。请使用微信支付或支付宝："
+        "POST /payment/wechat/create 或 POST /payment/alipay/create（请求体含 user_email、plan）。"
+    )
+
 
 def upgrade_user_plan(user_email, plan):
-    users = load_users()
-    user = users.get(user_email)
+    user = get_user(user_email)
     if not user:
         return False, "User not found"
-    user["plan"] = plan
+    user["plan"] = "professional" if plan == "pro" else plan
     user["plan_upgraded_at"] = datetime.utcnow().isoformat()
     save_user(user)
     return True, "Plan upgraded to " + plan
 
+
 def handle_webhook(payload, sig_header):
-    if not STRIPE_WEBHOOK_SECRET:
-        return False, "Webhook secret not configured"
-    try:
-        event = stripe.Webhook.construct_event(payload, sig_header, STRIPE_WEBHOOK_SECRET)
-    except Exception as e:
-        return False, str(e)
-    if event["type"] == "checkout.session.completed":
-        session = event["data"]["object"]
-        email = session.get("customer_email") or session.get("metadata", {}).get("user_email")
-        plan = session.get("metadata", {}).get("plan", "professional")
-        if email:
-            upgrade_user_plan(email, plan)
-    return True, "OK"
+    _ = (payload, sig_header)
+    return False, "Stripe Webhook 已停用；请配置微信/支付宝异步通知（/payment/wechat/notify、/payment/alipay/notify）。"
+
 
 def get_payment_config():
     return {
-        "stripe_configured": bool(stripe.api_key),
+        "stripe_configured": False,
         "plans": {
-            "professional": {"price_usd": 49, "tokens_day": 100000},
-            "business": {"price_usd": 199, "tokens_day": 500000},
-            "enterprise": {"price_usd": 999, "tokens_day": "unlimited"},
-        }
+            "professional": {"price_usd": 49, "price_cny": 199, "tokens_day": 50000},
+            "business": {"price_usd": 199, "price_cny": 599, "tokens_day": 150000},
+            "enterprise": {"price_usd": 999, "price_cny": 0, "tokens_day": 500000},
+        },
+        "cn_payment": {
+            "wechat_native": True,
+            "alipay_precreate": True,
+            "endpoints": [
+                "POST /payment/wechat/create",
+                "POST /payment/alipay/create",
+                "GET /payment/status/{order_id}",
+            ],
+        },
     }

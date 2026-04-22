@@ -2,12 +2,17 @@ import os
 import json
 import secrets
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Header
+from agents.meta_agent.plan_enforcement import require_feature, parse_bearer_email, resolve_scoped_user_email
 from pydantic import BaseModel
 from typing import Optional
 from agents.meta_agent.plan_enforcement import enforce_clone_limit
 
-router = APIRouter(prefix="/clones", tags=["Department Clones"])
+router = APIRouter(
+    prefix="/clones",
+    tags=["Department Clones"],
+    dependencies=[Depends(require_feature("clones"))],
+)
 CLONES_FILE = "memory/department_clones.jsonl"
 
 DEPARTMENTS = {
@@ -35,14 +40,14 @@ def rewrite_clones(clones):
             f.write(json.dumps(c) + "\n")
 
 class CreateCloneRequest(BaseModel):
-    user_email: str
+    user_email: Optional[str] = None
     department: str
     clone_name: str
     description: Optional[str] = ""
 
 class UpdateCloneRequest(BaseModel):
     clone_id: str
-    user_email: str
+    user_email: Optional[str] = None
     clone_name: Optional[str] = None
     description: Optional[str] = None
     status: Optional[str] = None
@@ -54,12 +59,13 @@ def get_departments():
     ]}
 
 @router.post("/create")
-def create_clone(req: CreateCloneRequest):
+def create_clone(req: CreateCloneRequest, authorization: str | None = Header(None)):
+    user_email = resolve_scoped_user_email(req.user_email, authorization)
     if req.department not in DEPARTMENTS:
         raise HTTPException(400, detail="Invalid department")
     clones = load_clones()
-    user_clones = [c for c in clones if c["user_email"] == req.user_email and not c.get("deleted")]
-    enforce_clone_limit(req.user_email)
+    user_clones = [c for c in clones if c["user_email"] == user_email and not c.get("deleted")]
+    enforce_clone_limit(user_email)
     if len(user_clones) >= 10:
         raise HTTPException(400, detail="Maximum 10 department clones per account")
     existing = [c for c in user_clones if c["department"] == req.department]
@@ -68,7 +74,7 @@ def create_clone(req: CreateCloneRequest):
     dept = DEPARTMENTS[req.department]
     clone = {
         "clone_id": "CLN-" + secrets.token_hex(6).upper(),
-        "user_email": req.user_email,
+        "user_email": user_email,
         "department": req.department,
         "clone_name": req.clone_name or dept["name"] + " Team",
         "description": req.description or dept["desc"],
@@ -84,22 +90,37 @@ def create_clone(req: CreateCloneRequest):
     save_clone(clone)
     return {"clone": clone, "message": "Department clone created successfully"}
 
-@router.get("/list/{user_email}")
-def list_clones(user_email: str):
+def clones_payload_for_user(user_email: str) -> dict:
     clones = load_clones()
-    user_clones = [c for c in clones
-                   if c["user_email"] == user_email and not c.get("deleted")]
+    user_clones = [c for c in clones if c["user_email"] == user_email and not c.get("deleted")]
     available = [
-        {"id": k, **v} for k, v in DEPARTMENTS.items()
+        {"id": k, **v}
+        for k, v in DEPARTMENTS.items()
         if k not in [c["department"] for c in user_clones]
     ]
     return {"clones": user_clones, "total": len(user_clones), "available_departments": available}
 
+
+@router.get("")
+def list_clones_me(authorization: str | None = Header(None)) -> dict:
+    """当前用户的部门克隆列表（GET /clones）。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    return clones_payload_for_user(email)
+
+
+@router.get("/list/{user_email}")
+def list_clones(user_email: str, authorization: str | None = Header(None)):
+    email = resolve_scoped_user_email(user_email, authorization)
+    return clones_payload_for_user(email)
+
 @router.post("/update")
-def update_clone(req: UpdateCloneRequest):
+def update_clone(req: UpdateCloneRequest, authorization: str | None = Header(None)):
+    user_email = resolve_scoped_user_email(req.user_email, authorization)
     clones = load_clones()
     for c in clones:
-        if c["clone_id"] == req.clone_id and c["user_email"] == req.user_email:
+        if c["clone_id"] == req.clone_id and c["user_email"] == user_email:
             if req.clone_name: c["clone_name"] = req.clone_name
             if req.description: c["description"] = req.description
             if req.status: c["status"] = req.status
@@ -109,10 +130,11 @@ def update_clone(req: UpdateCloneRequest):
     raise HTTPException(404, detail="Clone not found")
 
 @router.delete("/delete/{clone_id}/{user_email}")
-def delete_clone(clone_id: str, user_email: str):
+def delete_clone(clone_id: str, user_email: str, authorization: str | None = Header(None)):
+    email = resolve_scoped_user_email(user_email, authorization)
     clones = load_clones()
     for c in clones:
-        if c["clone_id"] == clone_id and c["user_email"] == user_email:
+        if c["clone_id"] == clone_id and c["user_email"] == email:
             c["deleted"] = True
             c["deleted_at"] = datetime.utcnow().isoformat()
             rewrite_clones(clones)

@@ -7,8 +7,8 @@ from agents.meta_agent.models import AuditEntry
 RESOURCE_LOG = Path("logs/resource_control.jsonl")
 
 LIMITS = {
-    "max_tokens_per_task": 20000,
-    "max_tokens_per_day": 100000,
+    "max_tokens_per_task": 10000,
+    "max_tokens_per_day": 50000,
     "max_tasks_per_agent_per_hour": 50,
     "max_concurrent_tasks": 10,
     "max_runtime_seconds": 120,

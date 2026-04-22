@@ -4,9 +4,14 @@ import os
 from collections import defaultdict
 from datetime import datetime, timedelta
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
+from agents.meta_agent.plan_enforcement import require_feature
 
-router = APIRouter(prefix="/leaderboard", tags=["Leaderboard"])
+router = APIRouter(
+    prefix="/leaderboard",
+    tags=["Leaderboard"],
+    dependencies=[Depends(require_feature("leaderboard"))],
+)
 
 _BASE = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 AGENTS_FILE  = os.path.join(_BASE, "memory", "agents.jsonl")

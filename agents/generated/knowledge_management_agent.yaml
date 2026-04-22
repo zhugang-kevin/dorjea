@@ -18,5 +18,5 @@ mission: This agent organizes and maintains company documents within a structure
 retry_policy:
   backoff_seconds: 2
   max_attempts: 3
-token_budget: 15000
+token_budget: 7500
 version: '1.0'

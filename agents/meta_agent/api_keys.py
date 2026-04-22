@@ -4,10 +4,15 @@ import json
 import os
 from datetime import datetime
 from typing import Optional
-from fastapi import APIRouter, HTTPException, Header
+from fastapi import APIRouter, HTTPException, Header, Depends
+from agents.meta_agent.plan_enforcement import require_feature, resolve_scoped_user_email
 from pydantic import BaseModel
 
-router = APIRouter(prefix="/api-keys", tags=["API Keys"])
+router = APIRouter(
+    prefix="/api-keys",
+    tags=["API Keys"],
+    dependencies=[Depends(require_feature("api_keys"))],
+)
 KEYS_FILE = "memory/api_keys.jsonl"
 
 def load_keys():
@@ -26,25 +31,26 @@ def rewrite_keys(keys):
             f.write(json.dumps(k) + "\n")
 
 class CreateKeyRequest(BaseModel):
-    user_email: str
+    user_email: Optional[str] = None
     name: str
     permissions: list = ["read", "write"]
 
 class RevokeKeyRequest(BaseModel):
-    user_email: str
+    user_email: Optional[str] = None
     key_id: str
 
 @router.post("/create")
-def create_api_key(req: CreateKeyRequest):
+def create_api_key(req: CreateKeyRequest, authorization: str | None = Header(None)):
+    user_email = resolve_scoped_user_email(req.user_email, authorization)
     raw_key = "dj_" + secrets.token_urlsafe(32)
     key_hash = hashlib.sha256(raw_key.encode()).hexdigest()
     keys = load_keys()
-    user_keys = [k for k in keys if k["user_email"] == req.user_email and not k.get("revoked")]
+    user_keys = [k for k in keys if k["user_email"] == user_email and not k.get("revoked")]
     if len(user_keys) >= 10:
         raise HTTPException(status_code=400, detail="Maximum 10 API keys per account")
     key_data = {
         "key_id": "kid_" + secrets.token_hex(8),
-        "user_email": req.user_email,
+        "user_email": user_email,
         "name": req.name,
         "key_hash": key_hash,
         "key_prefix": raw_key[:12] + "...",
@@ -60,21 +66,23 @@ def create_api_key(req: CreateKeyRequest):
             "message": "Copy this key now. It will never be shown again."}
 
 @router.get("/list/{user_email}")
-def list_api_keys(user_email: str):
+def list_api_keys(user_email: str, authorization: str | None = Header(None)):
+    scoped_email = resolve_scoped_user_email(user_email, authorization)
     keys = load_keys()
     user_keys = [
         {k: v for k, v in key.items() if k != "key_hash"}
         for key in keys
-        if key["user_email"] == user_email and not key.get("revoked")
+        if key["user_email"] == scoped_email and not key.get("revoked")
     ]
     return {"keys": user_keys, "total": len(user_keys)}
 
 @router.post("/revoke")
-def revoke_api_key(req: RevokeKeyRequest):
+def revoke_api_key(req: RevokeKeyRequest, authorization: str | None = Header(None)):
+    user_email = resolve_scoped_user_email(req.user_email, authorization)
     keys = load_keys()
     found = False
     for k in keys:
-        if k["key_id"] == req.key_id and k["user_email"] == req.user_email:
+        if k["key_id"] == req.key_id and k["user_email"] == user_email:
             k["revoked"] = True
             k["revoked_at"] = datetime.utcnow().isoformat()
             found = True

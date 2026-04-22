@@ -858,3 +858,31 @@ Always think step-by-step. When analyzing data, first validate it, then compute 
         try:
             if not records:
                 return json.dumps(
+                    {
+                        "success": True,
+                        "dataset_name": dataset_name,
+                        "record_count": 0,
+                        "message": "empty dataset",
+                    }
+                )
+            fields = set(records[0].keys())
+            if expected_fields:
+                missing = [f for f in expected_fields if f not in fields]
+                if missing:
+                    return json.dumps(
+                        {
+                            "success": False,
+                            "dataset_name": dataset_name,
+                            "missing_fields": missing,
+                        }
+                    )
+            return json.dumps(
+                {
+                    "success": True,
+                    "dataset_name": dataset_name,
+                    "record_count": len(records),
+                    "fields": list(fields),
+                }
+            )
+        except Exception as e:
+            return json.dumps({"success": False, "error": str(e)})

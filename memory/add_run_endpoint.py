@@ -11,8 +11,8 @@ old_end = """@app.get("/metrics")
 def get_metrics() -> dict:
     return {
         "daily_tokens_used": get_daily_usage(),
-        "daily_budget": 100000,
-        "budget_remaining": 100000 - get_daily_usage(),
+        "daily_budget": 50000,
+        "budget_remaining": 50000 - get_daily_usage(),
         "budget_ok": is_within_daily_budget(),
     }"""
 
@@ -20,8 +20,8 @@ new_end = """@app.get("/metrics")
 def get_metrics() -> dict:
     return {
         "daily_tokens_used": get_daily_usage(),
-        "daily_budget": 100000,
-        "budget_remaining": 100000 - get_daily_usage(),
+        "daily_budget": 50000,
+        "budget_remaining": 50000 - get_daily_usage(),
         "budget_ok": is_within_daily_budget(),
     }
 

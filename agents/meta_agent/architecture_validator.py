@@ -2,7 +2,7 @@ from pathlib import Path
 
 MANIFESTS_DIR = Path("agents/manifests")
 REQUIRED_AGENT_FIELDS = ["agent_name","version","mission","responsibilities","non_responsibilities","allowed_tools","token_budget","default_model","fallback_model","escalation_triggers","memory_policy","department"]
-MAX_TOKENS_PER_TASK = 20000
+MAX_TOKENS_PER_TASK = 10000
 
 def validate_agent_spec(agent_spec):
     errors = []

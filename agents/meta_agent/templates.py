@@ -1629,6 +1629,12 @@ def list_templates(category: Optional[str] = None) -> dict:
     return {"templates": results, "total": len(results)}
 
 
+@router.get("")
+def list_templates_root(category: Optional[str] = None) -> dict:
+    """GET /templates — 与 /templates/list 相同。"""
+    return list_templates(category)
+
+
 @router.get("/get/{template_id}")
 def get_template(template_id: str) -> dict:
     """Return full template including spec."""

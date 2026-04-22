@@ -68,7 +68,7 @@ resource_limits:
   max_recursion_depth: 3
   max_runtime_seconds: 120
   max_tasks_per_hour: 50
-  max_tokens_per_task: 15000
+  max_tokens_per_task: 7500
 role:
   department: engineering
   description: Automates the ingestion and processing of CSV files through structured

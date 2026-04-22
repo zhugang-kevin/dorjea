@@ -217,7 +217,7 @@ technical_skills:
   stage distribution from structured records
 - Template-based personalization logic that merges prospect-specific variables into
   outreach frameworks for scalable yet tailored communication
-token_budget: 15000
+token_budget: 7500
 verification_logic:
 - Before sending any outreach email, verify that the prospect record contains a valid
   email address, company name, and at least one identified pain point or use case

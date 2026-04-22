@@ -253,7 +253,7 @@ technical_skills:
   atomic write operations, and structured output directory management via filesystem_server
 - Registry read and write operations for persisting pipeline run metadata, schema
   versions, quality scores, and agent state checkpoints via registry_server
-token_budget: 15000
+token_budget: 7500
 verification_logic:
 - Did I successfully read the source CSV file without truncation, and does the parsed
   row count match the expected line count minus the header row?

@@ -1,0 +1,13 @@
+{
+  "task_id": "91c47dc5-5e3f-4e25-a0e1-af9ada499963",
+  "agent_id": "ecommerce_customer_service_bot",
+  "node_name": "generate_spec",
+  "timestamp": "2026-04-21T14:15:41.810916",
+  "model": "deepseek-chat",
+  "temperature": 0.0,
+  "system_prompt_hash": "2854967720307034028",
+  "system_prompt_preview": "You are the AI Factory Meta-Agent specification engine. Generate a complete 16-component Agent DNA Schema from a TaskSpec. You have no role. You produce agents for any domain. Return ONLY valid JSON. ",
+  "user_prompt_preview": "## TaskSpec\n{\n  \"task_id\": \"\",\n  \"agent_name\": \"ecommerce_customer_service_bot\",\n  \"agent_role\": \"AI customer service agent for e-commerce support\",\n  \"agent_mission\": \"Handle customer inquiries, proc",
+  "output_preview": "{\n  \"agent_name\": \"ecommerce_customer_service_bot\",\n  \"version\": \"1.0.0\",\n  \"department\": \"operations\",\n  \"mission\": \"Handle customer inquiries, process orders, and resolve issues for an e-commerce pl",
+  "tokens_used": 1941
+}

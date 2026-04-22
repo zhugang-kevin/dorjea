@@ -11,7 +11,7 @@ from pathlib import Path
 from fastmcp import FastMCP
 
 PROJECT_ROOT = Path(os.getenv("AI_FACTORY_ROOT", "E:/Dorjea")).resolve()
-mcp = FastMCP("dorjea-filesystem")
+mcp = FastMCP("yuancore-filesystem")
 
 
 def _safe_path(relative_path: str) -> Path:

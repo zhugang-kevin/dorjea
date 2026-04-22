@@ -1,0 +1,16 @@
+agent_name: ecommerce_customer_service_bot
+allowed_tools:
+- filesystem_server
+- web_search
+- email
+default_model: claude-sonnet-4-6
+department: operations
+fallback_model: gpt-5
+mission: Handle customer inquiries, process orders, and resolve issues for an e-commerce
+  platform. Provide timely and accurate responses to enhance customer satisfaction
+  and streamline support operations.
+retry_policy:
+  backoff_seconds: 2
+  max_attempts: 3
+token_budget: 7500
+version: 1.0.0

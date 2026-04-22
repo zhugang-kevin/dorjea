@@ -2,7 +2,9 @@ import os
 import json
 import secrets
 from datetime import datetime
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Header
+
+from agents.meta_agent.plan_enforcement import parse_bearer_email
 from pydantic import BaseModel
 from typing import Optional
 
@@ -44,6 +46,17 @@ class UpdateStatusRequest(BaseModel):
 CATEGORIES = ["general", "billing", "technical", "agent", "account", "feature_request"]
 PRIORITIES = ["low", "normal", "high", "urgent"]
 STATUSES = ["open", "in_progress", "waiting", "resolved", "closed"]
+
+@router.get("/tickets")
+def list_my_support_tickets(authorization: str | None = Header(None)) -> dict:
+    """当前登录用户的工单列表（GET /support/tickets）。"""
+    email = parse_bearer_email(authorization)
+    if not email:
+        raise HTTPException(status_code=401, detail="请先登录")
+    tickets = [t for t in load_tickets() if t.get("user_email") == email]
+    tickets.sort(key=lambda x: x.get("updated_at", ""), reverse=True)
+    return {"tickets": tickets, "total": len(tickets)}
+
 
 @router.post("/tickets/create")
 def create_ticket(req: CreateTicketRequest):
