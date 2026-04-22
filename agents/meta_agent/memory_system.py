@@ -80,6 +80,94 @@ def _new_id() -> str:
     return "mem_" + secrets.token_hex(8)
 
 
+def _active_agent_records(agent_id: str, user_email: str) -> list[dict]:
+    """Return non-deleted memory rows for one agent/user pair."""
+    return [
+        r for r in _load_all()
+        if r.get("agent_id") == agent_id
+        and r.get("user_email") == user_email
+        and not r.get("deleted", False)
+    ]
+
+
+def recall_relevant_memories(
+    agent_id: str,
+    user_email: str,
+    query: str = "",
+    limit: int = 5,
+) -> list[dict]:
+    """Return the most relevant memories for a task prompt."""
+    records = _active_agent_records(agent_id, user_email)
+    query_terms = [term for term in query.lower().split() if len(term) >= 3]
+    scored: list[tuple[int, int, str, dict]] = []
+
+    for rec in records:
+        haystack = " ".join(
+            [
+                str(rec.get("content", "")),
+                str(rec.get("context", "")),
+                " ".join(str(tag) for tag in rec.get("tags", [])),
+            ]
+        ).lower()
+        matches = sum(1 for term in query_terms if term in haystack)
+        score = matches * 10 + int(rec.get("importance", 0) or 0)
+        scored.append((score, int(rec.get("importance", 0) or 0), str(rec.get("created_at", "")), rec))
+
+    scored.sort(key=lambda item: (item[0], item[1], item[2]), reverse=True)
+    return [item[3] for item in scored[: max(1, limit)] if item[0] > 0 or not query_terms]
+
+
+def build_memory_context(
+    agent_id: str,
+    user_email: str,
+    query: str = "",
+    limit: int = 3,
+) -> str:
+    """Format recalled memories into a compact prompt block."""
+    memories = recall_relevant_memories(agent_id, user_email, query=query, limit=limit)
+    if not memories:
+        return ""
+
+    lines = ["Relevant memory:"]
+    for idx, memory in enumerate(memories, start=1):
+        memory_type = str(memory.get("memory_type", "context_data"))
+        content = str(memory.get("content", "")).strip().replace("\r", " ").replace("\n", " ")
+        lines.append(f"{idx}. [{memory_type}] {content[:240]}")
+    return "\n".join(lines)
+
+
+def store_task_result_memory(
+    agent_id: str,
+    user_email: str,
+    task_instruction: str,
+    output: str,
+    *,
+    importance: int = 6,
+    tags: list[str] | None = None,
+    context: str = "",
+) -> dict:
+    """Persist a completed task result as reusable memory."""
+    record = {
+        "memory_id": _new_id(),
+        "agent_id": agent_id,
+        "user_email": user_email,
+        "memory_type": "task_result",
+        "content": str(output or "")[:4000],
+        "context": (
+            f"Task: {str(task_instruction or '')[:500]}"
+            + (f" | {context[:500]}" if context else "")
+        ),
+        "importance": max(1, min(10, int(importance))),
+        "tags": list(tags or []),
+        "access_count": 0,
+        "last_accessed": None,
+        "created_at": datetime.utcnow().isoformat(),
+        "deleted": False,
+    }
+    _append(record)
+    return record
+
+
 def _load_knowledge_index_all() -> list[dict]:
     if not os.path.exists(KNOWLEDGE_INDEX):
         return []

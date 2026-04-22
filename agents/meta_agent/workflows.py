@@ -258,7 +258,20 @@ def _resume_workflow_run(run_id: str) -> None:
         agent_name = str(step.get("agent_name"))
 
         def _run_step() -> dict:
-            return runtime.run_task(agent_name, prompt, task_id=f"{run_id}:{step_id}")
+            result = runtime.run_task(
+                agent_name,
+                prompt,
+                task_id=f"{run_id}:{step_id}",
+                user_email=user_email,
+                validation_rules=validation_rules,
+            )
+            validation = result.get("validation", {})
+            if result.get("status") == "SUCCESS" and not validation.get("passed", True):
+                result = dict(result)
+                failures = validation.get("validation_failures", [])
+                result["status"] = "FAILED"
+                result["error"] = "; ".join(failures) or "Workflow step validation failed"
+            return result
 
         result = with_retry(
             _run_step,
@@ -286,7 +299,13 @@ def _resume_workflow_run(run_id: str) -> None:
             "confidence": confidence,
             "confidence_threshold": threshold,
             "retries_used": reliability.get("retries_used", 0),
-            "validation_passed": reliability.get("validation_passed", True),
+            "validation_passed": bool(
+                result.get("validation", {}).get("passed", reliability.get("validation_passed", True))
+            ),
+            "validation_failures": result.get("validation", {}).get(
+                "validation_failures",
+                reliability.get("validation_failures", []),
+            ),
             "completed_at": _now(),
         }
         run.setdefault("step_results", []).append(step_result)

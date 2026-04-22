@@ -362,7 +362,7 @@ def run_agent_task(
     safe, reason = is_safe(body.task, agent_id="founder")
     if not safe:
         raise HTTPException(status_code=400, detail="Task blocked: " + reason)
-    result = runtime.run_task(agent_name, body.task)
+    result = runtime.run_task(agent_name, body.task, user_email=user_email)
     if result["status"] == "FAILED":
         raise HTTPException(status_code=400, detail=result.get("error", "Task failed"))
     return result
