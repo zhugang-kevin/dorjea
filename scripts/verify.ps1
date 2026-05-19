@@ -1,80 +1,231 @@
-# verify.ps1 - 元芯智能核心项目日常校验脚本
+# verify.ps1 - daily project verification + release gate runner
+param(
+    [switch]$SkipPytest,
+    [switch]$SkipFrontend,
+    [switch]$SkipCloneVerify
+)
+
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $RepoRoot
 $errors = 0
-Write-Host "元芯智能 - 日常校验" -ForegroundColor Cyan
+$WindowsVenvPython = Join-Path $RepoRoot "venv\Scripts\python.exe"
+$LinuxVenvPython = Join-Path $RepoRoot "venv\bin\python"
+if (Test-Path -LiteralPath $WindowsVenvPython) {
+    $PythonExe = $WindowsVenvPython
+} elseif (Test-Path -LiteralPath $LinuxVenvPython) {
+    throw "Detected a Linux-style virtualenv at $LinuxVenvPython. Rebuild the virtualenv for Windows before running verification."
+} else {
+    $PythonExe = "python"
+}
+
+function Test-ProjectFile {
+    param([string]$FullName)
+    return (
+        $FullName -notmatch '\\venv(\\|$)' -and
+        $FullName -notmatch '\\venv_linux_backup(\\|$)' -and
+        $FullName -notmatch '\\node_modules(\\|$)' -and
+        $FullName -notmatch '\\frontend\\node_modules(\\|$)' -and
+        $FullName -notmatch '\\frontend\\\.next(\\|$)' -and
+        $FullName -notmatch '\\frontend\\\.next-runtime(\\|$)' -and
+        $FullName -notmatch '\\__pycache__(\\|$)' -and
+        $FullName -notmatch '\\\.git(\\|$)'
+    )
+}
+
+Write-Host "Guixin AgentCore - daily verification" -ForegroundColor Cyan
 Write-Host "========================================" -ForegroundColor Cyan
-Write-Host "`n[1] 检查关键文件..." -ForegroundColor Yellow
+Write-Host "`n[1] Checking critical files..." -ForegroundColor Yellow
 $criticalFiles = @(
-    "AGENTS.md", ".cursor\rules\00-global.mdc", ".env", "requirements.txt",
+    "AGENTS.md", ".cursor\rules\00-global.mdc", ".env", ".env.example", "requirements.txt",
+    "ai-system\project_state.json", "ai-system\workflow.json", "ai-system\controller.py",
+    "ai-system\router.py", "ai-system\validator.py", "ai-system\health_check.py", "system_architecture.md",
     "agents\meta_agent\models.py", "agents\meta_agent\state.py", "agents\meta_agent\nodes.py",
     "agents\meta_agent\graph.py", "agents\meta_agent\api.py", "agents\meta_agent\registry.py",
-    "agents\meta_agent\audit_logger.py", "agents\runtime\ai_clients.py",
+    "agents\meta_agent\audit_logger.py", "agents\meta_agent\build_contract.py",
+    "agents\meta_agent\model_handoff.py", "agents\meta_agent\assurance.py", "agents\runtime\ai_clients.py",
+    "agents\runtime\task_queue.py", "agents\runtime\worker_runner.py",
+    "scripts\check_foundation.py", "scripts\assurance_check.py", "scripts\backup_restore_verify.py",
     "tools\mcp\filesystem_server\server.py", "tools\mcp\registry_server\server.py",
-    "memory\aifactory.db", "memory\schema.sql"
+    "memory\aifactory.db", "memory\schema.sql", "scripts\check_system_state.py", "scripts\start_all.ps1",
+    "scripts\start_worker.ps1", "docs\enterprise_architecture.md", "infra\docker-compose.enterprise.yml",
+    "docs\release_gate.md", "docs\release_rehearsal_report.md"
 )
 foreach ($name in $criticalFiles) {
     $full = Join-Path -Path $RepoRoot -ChildPath $name
     if (Test-Path -LiteralPath $full) { Write-Host "  OK: $name" -ForegroundColor Green }
     else { Write-Host "  MISSING: $name" -ForegroundColor Red; $errors++ }
 }
-Write-Host "`n[2] 检查源码中的敏感串样例..." -ForegroundColor Yellow
+
+Write-Host "`n[2] Checking common secret samples..." -ForegroundColor Yellow
 $secretPatterns = @("sk-ant-", "sk-proj-", "ANTHROPIC_API_KEY=sk", "OPENAI_API_KEY=sk")
 $secretFound = $false
 $scanFiles = Get-ChildItem -LiteralPath $RepoRoot -Recurse -File -ErrorAction SilentlyContinue |
-    Where-Object { $_.FullName -notmatch '\\venv\\' -and $_.FullName -notmatch '\\node_modules\\' -and ($_.Extension -match '\.(py|ps1|md|ts|tsx|js|json|env)$') }
+    Where-Object { (Test-ProjectFile $_.FullName) -and ($_.Extension -match '\.(py|ps1|md|ts|tsx|js|json|env)$') }
 foreach ($pattern in $secretPatterns) {
     foreach ($file in $scanFiles) {
         if ($file.Name -match 'verify|write_verify|fix_') { continue }
         $c = Get-Content -LiteralPath $file.FullName -Raw -ErrorAction SilentlyContinue
         if ($null -eq $c) { continue }
         if ($c -match [regex]::Escape($pattern)) {
-            Write-Host "  可疑内容: $($file.FullName)" -ForegroundColor Red
+            Write-Host "  Suspicious content: $($file.FullName)" -ForegroundColor Red
             $errors++
             $secretFound = $true
         }
     }
 }
-if (-not $secretFound) { Write-Host "  OK: 未发现常见境外密钥样例" -ForegroundColor Green }
-Write-Host "`n[3] 检查 Python 导入..." -ForegroundColor Yellow
+if (-not $secretFound) { Write-Host "  OK: no common external key samples found" -ForegroundColor Green }
+
+Write-Host "`n[3] Checking Python imports..." -ForegroundColor Yellow
 $imports = @(
     "from agents.meta_agent.models import TaskSpec, AgentSpec, FounderReport",
     "from agents.meta_agent.state import MetaAgentState",
     "from agents.meta_agent.nodes import parse_request, return_report",
     "from agents.meta_agent.graph import meta_agent_graph",
     "from agents.meta_agent.api import app",
-    "from agents.runtime.ai_clients import PrimaryChatClient, AIChatRequest"
+    "from agents.runtime.ai_clients import PrimaryChatClient, AIChatRequest",
+    "from agents.meta_agent.build_contract import load_build_state",
+    "from agents.meta_agent.model_handoff import get_model_guidance",
+    "from agents.runtime.task_queue import task_queue"
 )
 foreach ($import in $imports) {
-    $result = python -c "$import; print('OK')" 2>&1
-    if ($result -match "OK") { Write-Host "  OK: $import" -ForegroundColor Green }
-    else { Write-Host "  FAILED: $import" -ForegroundColor Red; $errors++ }
+    $result = & $PythonExe -c "$import; print('OK')" 2>&1
+    if ($LASTEXITCODE -eq 0 -and ($result | Select-Object -Last 1) -eq "OK") {
+        Write-Host "  OK: $import" -ForegroundColor Green
+    } else {
+        Write-Host "  FAILED: $import" -ForegroundColor Red
+        Write-Host "    $result" -ForegroundColor DarkRed
+        $errors++
+    }
 }
-Write-Host "`n[4] 检查数据库..." -ForegroundColor Yellow
+
+Write-Host "`n[4] Checking database..." -ForegroundColor Yellow
 $dbScript = Join-Path -Path $RepoRoot -ChildPath "memory\check_db_verify.py"
-$dbResult = python $dbScript 2>&1
+$dbResult = & $PythonExe $dbScript 2>&1
 if ($dbResult -match "^OK:") {
-    Write-Host "  OK: 数据库可访问。表: $($dbResult -replace '^OK:','')" -ForegroundColor Green
+    Write-Host "  OK: database is reachable. Tables: $($dbResult -replace '^OK:','')" -ForegroundColor Green
 } else {
     Write-Host "  FAILED: $dbResult" -ForegroundColor Red
     $errors++
 }
-Write-Host "`n[5] 检查代码中的 TODO 注释..." -ForegroundColor Yellow
+$foundationScript = Join-Path -Path $RepoRoot -ChildPath "scripts\check_foundation.py"
+$foundationResult = & $PythonExe $foundationScript 2>&1
+if ($foundationResult -match "^READY$") {
+    Write-Host "  OK: project foundation charter is present" -ForegroundColor Green
+} else {
+    Write-Host "  FAILED: $foundationResult" -ForegroundColor Red
+    $errors++
+}
+
+Write-Host "`n[5] Checking assurance and backup verification..." -ForegroundColor Yellow
+$assuranceScript = Join-Path -Path $RepoRoot -ChildPath "scripts\assurance_check.py"
+$assuranceResult = & $PythonExe $assuranceScript 2>&1
+if ($assuranceResult -match "^READY$") {
+    Write-Host "  OK: assurance checks passed" -ForegroundColor Green
+} else {
+    Write-Host "  FAILED: $assuranceResult" -ForegroundColor Red
+    $errors++
+}
+$backupScript = Join-Path -Path $RepoRoot -ChildPath "scripts\backup_restore_verify.py"
+$backupResult = & $PythonExe $backupScript 2>&1
+if ($backupResult -match "^READY$") {
+    Write-Host "  OK: backup/restore verification passed" -ForegroundColor Green
+} else {
+    Write-Host "  FAILED: $backupResult" -ForegroundColor Red
+    $errors++
+}
+
+Write-Host "`n[6] Checking TODO comments..." -ForegroundColor Yellow
 $pyFiles = Get-ChildItem -LiteralPath $RepoRoot -Recurse -Filter "*.py" |
-    Where-Object { $_.FullName -notmatch '\\venv\\' }
+    Where-Object { Test-ProjectFile $_.FullName }
 $todoFound = $false
 foreach ($file in $pyFiles) {
     $lines = Get-Content -LiteralPath $file.FullName
     for ($i = 0; $i -lt $lines.Count; $i++) {
         if ($lines[$i] -match "^\s*#.*(TODO|FIXME)") {
-            Write-Host "  TODO: $($file.Name) 行 $($i+1)" -ForegroundColor Red
+            $relativePath = $file.FullName.Substring($RepoRoot.Length + 1)
+            Write-Host ("  TODO: {0} line {1}" -f $relativePath, ($i + 1)) -ForegroundColor Red
             $errors++
             $todoFound = $true
         }
     }
 }
-if (-not $todoFound) { Write-Host "  OK: 未发现 TODO/FIXME 注释" -ForegroundColor Green }
+if (-not $todoFound) { Write-Host "  OK: no TODO/FIXME comments found" -ForegroundColor Green }
+
+Write-Host "`n[7] Running backend tests (pytest)..." -ForegroundColor Yellow
+if ($SkipPytest) {
+    Write-Host "  SKIP: pytest (requested)" -ForegroundColor Yellow
+} else {
+    $pytestResult = & $PythonExe -m pytest -q 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  OK: pytest passed" -ForegroundColor Green
+    } else {
+        Write-Host "  FAILED: pytest failed" -ForegroundColor Red
+        Write-Host "    $pytestResult" -ForegroundColor DarkRed
+        $errors++
+    }
+}
+
+Write-Host "`n[8] Running frontend lint/build..." -ForegroundColor Yellow
+if ($SkipFrontend) {
+    Write-Host "  SKIP: frontend lint/build (requested)" -ForegroundColor Yellow
+} else {
+    $frontendPath = Join-Path -Path $RepoRoot -ChildPath "frontend"
+    if (-not (Test-Path -LiteralPath $frontendPath)) {
+        Write-Host "  FAILED: frontend directory missing at $frontendPath" -ForegroundColor Red
+        $errors++
+    } else {
+        Push-Location -LiteralPath $frontendPath
+        try {
+            $lintResult = & npm run lint 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  OK: frontend lint passed" -ForegroundColor Green
+            } else {
+                Write-Host "  FAILED: frontend lint failed" -ForegroundColor Red
+                Write-Host "    $lintResult" -ForegroundColor DarkRed
+                $errors++
+            }
+
+            $buildResult = & npm run build 2>&1
+            if ($LASTEXITCODE -eq 0) {
+                Write-Host "  OK: frontend build passed" -ForegroundColor Green
+            } else {
+                Write-Host "  FAILED: frontend build failed" -ForegroundColor Red
+                Write-Host "    $buildResult" -ForegroundColor DarkRed
+                $errors++
+            }
+        } finally {
+            Pop-Location
+        }
+    }
+}
+
+Write-Host "`n[9] Running clone verification..." -ForegroundColor Yellow
+if ($SkipCloneVerify) {
+    Write-Host "  SKIP: clone verification (requested)" -ForegroundColor Yellow
+} else {
+    $workspaceRoot = Split-Path -Parent $RepoRoot
+    $cloneVerifyScript = Join-Path -Path $workspaceRoot -ChildPath "clone_verify.ps1"
+    if (-not (Test-Path -LiteralPath $cloneVerifyScript)) {
+        Write-Host "  FAILED: clone verifier missing at $cloneVerifyScript" -ForegroundColor Red
+        $errors++
+    } else {
+        $cloneResult = & $cloneVerifyScript 2>&1
+        if ($LASTEXITCODE -eq 0) {
+            Write-Host "  OK: clone verification passed" -ForegroundColor Green
+        } else {
+            Write-Host "  FAILED: clone verification failed" -ForegroundColor Red
+            Write-Host "    $cloneResult" -ForegroundColor DarkRed
+            $errors++
+        }
+        Set-Location -LiteralPath $RepoRoot
+    }
+}
+
 Write-Host "`n========================================" -ForegroundColor Cyan
-if ($errors -eq 0) { Write-Host "校验通过 - 0 个错误" -ForegroundColor Green }
-else { Write-Host "校验失败 - 共 $errors 个问题" -ForegroundColor Red }
+if ($errors -eq 0) { Write-Host "Verification passed - 0 errors" -ForegroundColor Green }
+else { Write-Host "Verification failed - $errors issue(s)" -ForegroundColor Red }
 Write-Host "========================================" -ForegroundColor Cyan
+
+if ($errors -gt 0) {
+    exit 1
+}
