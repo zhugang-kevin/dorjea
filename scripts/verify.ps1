@@ -2,7 +2,8 @@
 param(
     [switch]$SkipPytest,
     [switch]$SkipFrontend,
-    [switch]$SkipCloneVerify
+    [switch]$SkipCloneVerify,
+    [switch]$StrictFrontend
 )
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -19,6 +20,7 @@ $pytestPassed = $false
 $frontendLintPassed = $false
 $frontendBuildPassed = $false
 $cloneVerifyPassed = $false
+$apiHealthPassed = $false
 $WindowsVenvPython = Join-Path $RepoRoot "venv\Scripts\python.exe"
 $LinuxVenvPython = Join-Path $RepoRoot "venv\bin\python"
 if (Test-Path -LiteralPath $WindowsVenvPython) {
@@ -190,6 +192,10 @@ if ($SkipPytest) {
 Write-Host "`n[8] Running frontend lint/build..." -ForegroundColor Yellow
 if ($SkipFrontend) {
     Write-Host "  SKIP: frontend lint/build (requested)" -ForegroundColor Yellow
+    if ($StrictFrontend) {
+        Write-Host "  FAILED: strict frontend mode requires lint/build to run." -ForegroundColor Red
+        $errors++
+    }
 } else {
     $frontendPath = Join-Path -Path $RepoRoot -ChildPath "frontend"
     if (-not (Test-Path -LiteralPath $frontendPath)) {
@@ -223,7 +229,36 @@ if ($SkipFrontend) {
     }
 }
 
-Write-Host "`n[9] Running clone verification..." -ForegroundColor Yellow
+Write-Host "`n[9] Checking API health endpoint..." -ForegroundColor Yellow
+try {
+    $healthScript = @"
+from fastapi.testclient import TestClient
+from agents.meta_agent.api import app
+client = TestClient(app)
+r = client.get('/health')
+status = r.json().get('status', '')
+if r.status_code == 200 and status in {'healthy', 'ok', 'alert'}:
+    print('OK')
+else:
+    print(f'BAD status_code={r.status_code} status={status}')
+    raise SystemExit(1)
+"@
+    $healthResult = $healthScript | & $PythonExe - 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  OK: /health returned valid response" -ForegroundColor Green
+        $apiHealthPassed = $true
+    } else {
+        Write-Host "  FAILED: /health probe failed" -ForegroundColor Red
+        Write-Host "    $healthResult" -ForegroundColor DarkRed
+        $errors++
+    }
+} catch {
+    Write-Host "  FAILED: /health probe failed with exception" -ForegroundColor Red
+    Write-Host "    $($_.Exception.Message)" -ForegroundColor DarkRed
+    $errors++
+}
+
+Write-Host "`n[10] Running clone verification..." -ForegroundColor Yellow
 if ($SkipCloneVerify) {
     Write-Host "  SKIP: clone verification (requested)" -ForegroundColor Yellow
 } else {
@@ -246,7 +281,7 @@ if ($SkipCloneVerify) {
     }
 }
 
-Write-Host "`n[10] Writing release rehearsal evidence..." -ForegroundColor Yellow
+Write-Host "`n[11] Writing release rehearsal evidence..." -ForegroundColor Yellow
 $verificationEnd = [datetime]::UtcNow
 $reportPath = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\rehearsal-" + $verificationEnd.ToString("yyyyMMdd-HHmmss") + ".json")
 $reportScript = Join-Path -Path $RepoRoot -ChildPath "scripts\write_rehearsal_report.py"
@@ -265,6 +300,7 @@ if ($pytestPassed) { $reportArgs += "--pytest-passed" }
 if ($frontendLintPassed) { $reportArgs += "--frontend-lint-passed" }
 if ($frontendBuildPassed) { $reportArgs += "--frontend-build-passed" }
 if ($cloneVerifyPassed) { $reportArgs += "--clone-verify-passed" }
+if ($apiHealthPassed) { $reportArgs += "--api-health-passed" }
 if ($dbCheckPassed) { $reportArgs += "--db-check-passed" }
 if ($backupRestorePassed) { $reportArgs += "--backup-restore-passed" }
 if ($assurancePassed) { $reportArgs += "--assurance-passed" }

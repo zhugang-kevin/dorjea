@@ -33,6 +33,7 @@ def main() -> int:
     parser.add_argument("--frontend-lint-passed", action="store_true")
     parser.add_argument("--frontend-build-passed", action="store_true")
     parser.add_argument("--clone-verify-passed", action="store_true")
+    parser.add_argument("--api-health-passed", action="store_true")
     parser.add_argument("--db-check-passed", action="store_true")
     parser.add_argument("--backup-restore-passed", action="store_true")
     parser.add_argument("--assurance-passed", action="store_true")
@@ -63,7 +64,8 @@ def main() -> int:
     gate_pytest = args.skip_pytest or args.pytest_passed
     gate_frontend = args.skip_frontend or (args.frontend_lint_passed and args.frontend_build_passed)
     gate_clone = args.skip_clone_verify or args.clone_verify_passed
-    overall_pass = args.errors == 0 and gate_backend_verify and gate_pytest and gate_frontend and gate_clone
+    gate_api_health = args.api_health_passed
+    overall_pass = args.errors == 0 and gate_backend_verify and gate_pytest and gate_frontend and gate_clone and gate_api_health
 
     report = {
         "generated_at": dt.datetime.utcnow().isoformat() + "Z",
@@ -89,6 +91,7 @@ def main() -> int:
                 "build_passed": args.frontend_build_passed,
             },
             "clone_verification": {"status": _status(gate_clone), "skipped": args.skip_clone_verify},
+            "api_health": {"status": _status(gate_api_health)},
             "backup_restore": {"status": _status(args.backup_restore_passed)},
         },
         "checks": {
@@ -108,4 +111,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

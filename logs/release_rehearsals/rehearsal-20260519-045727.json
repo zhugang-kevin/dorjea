@@ -1,0 +1,48 @@
+{
+  "generated_at": "2026-05-19T04:57:28.002006Z",
+  "date": "2026-05-19",
+  "owner": "Codex",
+  "branch": "master",
+  "commit": "c2de2ef",
+  "environment": "local",
+  "summary": {
+    "result": "FAIL",
+    "start_time": "2026-05-19T04:55:23.8634125Z",
+    "end_time": "2026-05-19T04:57:27.3603789Z",
+    "duration_seconds": 123,
+    "errors": 1
+  },
+  "hard_gates": {
+    "backend_verification": {
+      "status": "PASS"
+    },
+    "pytest": {
+      "status": "PASS",
+      "skipped": false
+    },
+    "frontend": {
+      "status": "PASS",
+      "skipped": true,
+      "lint_passed": false,
+      "build_passed": false
+    },
+    "clone_verification": {
+      "status": "PASS",
+      "skipped": false
+    },
+    "api_health": {
+      "status": "PASS"
+    },
+    "backup_restore": {
+      "status": "PASS"
+    }
+  },
+  "checks": {
+    "critical_files": true,
+    "imports": true,
+    "database": true,
+    "assurance": true,
+    "todo_scan": true
+  },
+  "decision": "NO-GO"
+}
