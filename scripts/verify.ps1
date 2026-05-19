@@ -306,6 +306,7 @@ $reportArgs = @(
     $reportScript,
     "--repo-root", $RepoRoot,
     "--output", $reportPath,
+    "--mode", $(if ($ReleaseCandidate) { "release_candidate" } else { "standard" }),
     "--errors", "$errors",
     "--start-iso", $verificationStart.ToString("o"),
     "--end-iso", $verificationEnd.ToString("o")

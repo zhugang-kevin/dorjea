@@ -19,10 +19,17 @@ def _status(value: bool) -> str:
     return "PASS" if value else "FAIL"
 
 
+def _status_with_skip(passed: bool, skipped: bool) -> str:
+    if skipped:
+        return "SKIP"
+    return _status(passed)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Write release rehearsal report from gate results.")
     parser.add_argument("--repo-root", required=True)
     parser.add_argument("--output", required=True)
+    parser.add_argument("--mode", choices=["standard", "release_candidate"], default="standard")
     parser.add_argument("--errors", type=int, required=True)
     parser.add_argument("--start-iso", required=True)
     parser.add_argument("--end-iso", required=True)
@@ -74,6 +81,7 @@ def main() -> int:
         "branch": branch,
         "commit": commit,
         "environment": "local",
+        "mode": args.mode,
         "summary": {
             "result": _status(overall_pass),
             "start_time": args.start_iso,
@@ -83,14 +91,14 @@ def main() -> int:
         },
         "hard_gates": {
             "backend_verification": {"status": _status(gate_backend_verify)},
-            "pytest": {"status": _status(gate_pytest), "skipped": args.skip_pytest},
+            "pytest": {"status": _status_with_skip(gate_pytest, args.skip_pytest), "skipped": args.skip_pytest},
             "frontend": {
-                "status": _status(gate_frontend),
+                "status": _status_with_skip(gate_frontend, args.skip_frontend),
                 "skipped": args.skip_frontend,
                 "lint_passed": args.frontend_lint_passed,
                 "build_passed": args.frontend_build_passed,
             },
-            "clone_verification": {"status": _status(gate_clone), "skipped": args.skip_clone_verify},
+            "clone_verification": {"status": _status_with_skip(gate_clone, args.skip_clone_verify), "skipped": args.skip_clone_verify},
             "api_health": {"status": _status(gate_api_health)},
             "backup_restore": {"status": _status(args.backup_restore_passed)},
         },

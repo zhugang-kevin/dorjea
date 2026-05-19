@@ -20,6 +20,7 @@ def main() -> int:
     summary = report.get("summary", {})
     hard = report.get("hard_gates", {})
     checks = report.get("checks", {})
+    mode = report.get("mode", "standard")
 
     lines = [
         "# Release Rehearsal Summary",
@@ -27,6 +28,7 @@ def main() -> int:
         f"- Date: `{report.get('date', 'unknown')}`",
         f"- Branch/Commit: `{report.get('branch', 'unknown')}` / `{report.get('commit', 'unknown')}`",
         f"- Environment: `{report.get('environment', 'unknown')}`",
+        f"- Mode: `{mode}`",
         f"- Result: **{summary.get('result', 'UNKNOWN')}**",
         f"- Decision: **{report.get('decision', 'UNKNOWN')}**",
         f"- Duration (sec): `{summary.get('duration_seconds', 'unknown')}`",
@@ -61,4 +63,3 @@ def main() -> int:
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
