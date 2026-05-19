@@ -21,6 +21,9 @@ def main() -> int:
     hard = report.get("hard_gates", {})
     checks = report.get("checks", {})
     mode = report.get("mode", "standard")
+    rc_badge = "N/A"
+    if mode == "release_candidate":
+        rc_badge = "PASS" if report.get("decision") == "GO" else "FAIL"
 
     lines = [
         "# Release Rehearsal Summary",
@@ -31,8 +34,10 @@ def main() -> int:
         f"- Mode: `{mode}`",
         f"- Result: **{summary.get('result', 'UNKNOWN')}**",
         f"- Decision: **{report.get('decision', 'UNKNOWN')}**",
+        f"- RC Badge: **{rc_badge}**",
         f"- Duration (sec): `{summary.get('duration_seconds', 'unknown')}`",
         f"- Errors: `{summary.get('errors', 'unknown')}`",
+        f"- Failure Cause: `{summary.get('failure_cause', '') or 'none'}`",
         "",
         "## Hard Gates",
         "",

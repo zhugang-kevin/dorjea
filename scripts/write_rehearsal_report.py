@@ -47,6 +47,7 @@ def main() -> int:
     parser.add_argument("--imports-passed", action="store_true")
     parser.add_argument("--critical-files-passed", action="store_true")
     parser.add_argument("--todo-check-passed", action="store_true")
+    parser.add_argument("--failure-cause", default="", help="Optional normalized failure cause code.")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -88,6 +89,7 @@ def main() -> int:
             "end_time": args.end_iso,
             "duration_seconds": int(duration.total_seconds()),
             "errors": args.errors,
+            "failure_cause": args.failure_cause or "",
         },
         "hard_gates": {
             "backend_verification": {"status": _status(gate_backend_verify)},

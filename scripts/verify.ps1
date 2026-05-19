@@ -22,6 +22,7 @@ $frontendLintPassed = $false
 $frontendBuildPassed = $false
 $cloneVerifyPassed = $false
 $apiHealthPassed = $false
+$failureCause = ""
 $runStamp = $verificationStart.ToString("yyyyMMdd-HHmmss")
 $runLogDir = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\run-" + $runStamp)
 New-Item -ItemType Directory -Path $runLogDir -Force | Out-Null
@@ -236,6 +237,10 @@ if ($SkipFrontend) {
             } else {
                 Write-Host "  FAILED: frontend build failed" -ForegroundColor Red
                 Write-Host "    $buildResult" -ForegroundColor DarkRed
+                $buildOutput = ($buildResult | Out-String)
+                if (($buildOutput -match "spawn EPERM") -or ($buildOutput -match "syscall:\s*'spawn'")) {
+                    $failureCause = "sandbox_eprem"
+                }
                 $errors++
             }
         } finally {
@@ -325,6 +330,7 @@ if ($assurancePassed) { $reportArgs += "--assurance-passed" }
 if ($importsPassed) { $reportArgs += "--imports-passed" }
 if ($criticalFilesPassed) { $reportArgs += "--critical-files-passed" }
 if ($todoCheckPassed) { $reportArgs += "--todo-check-passed" }
+if ($failureCause) { $reportArgs += @("--failure-cause", $failureCause) }
 
 $reportResult = & $PythonExe @reportArgs 2>&1
 Set-Content -LiteralPath (Join-Path $runLogDir "11-report-generator.log") -Value ($reportResult | Out-String) -Encoding UTF8
