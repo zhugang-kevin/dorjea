@@ -8,6 +8,17 @@ param(
 $RepoRoot = Split-Path -Parent $PSScriptRoot
 Set-Location -LiteralPath $RepoRoot
 $errors = 0
+$verificationStart = [datetime]::UtcNow
+$criticalFilesPassed = $true
+$importsPassed = $true
+$dbCheckPassed = $true
+$assurancePassed = $true
+$backupRestorePassed = $true
+$todoCheckPassed = $true
+$pytestPassed = $false
+$frontendLintPassed = $false
+$frontendBuildPassed = $false
+$cloneVerifyPassed = $false
 $WindowsVenvPython = Join-Path $RepoRoot "venv\Scripts\python.exe"
 $LinuxVenvPython = Join-Path $RepoRoot "venv\bin\python"
 if (Test-Path -LiteralPath $WindowsVenvPython) {
@@ -53,7 +64,11 @@ $criticalFiles = @(
 foreach ($name in $criticalFiles) {
     $full = Join-Path -Path $RepoRoot -ChildPath $name
     if (Test-Path -LiteralPath $full) { Write-Host "  OK: $name" -ForegroundColor Green }
-    else { Write-Host "  MISSING: $name" -ForegroundColor Red; $errors++ }
+    else {
+        Write-Host "  MISSING: $name" -ForegroundColor Red
+        $errors++
+        $criticalFilesPassed = $false
+    }
 }
 
 Write-Host "`n[2] Checking common secret samples..." -ForegroundColor Yellow
@@ -95,6 +110,7 @@ foreach ($import in $imports) {
         Write-Host "  FAILED: $import" -ForegroundColor Red
         Write-Host "    $result" -ForegroundColor DarkRed
         $errors++
+        $importsPassed = $false
     }
 }
 
@@ -106,6 +122,7 @@ if ($dbResult -match "^OK:") {
 } else {
     Write-Host "  FAILED: $dbResult" -ForegroundColor Red
     $errors++
+    $dbCheckPassed = $false
 }
 $foundationScript = Join-Path -Path $RepoRoot -ChildPath "scripts\check_foundation.py"
 $foundationResult = & $PythonExe $foundationScript 2>&1
@@ -114,6 +131,7 @@ if ($foundationResult -match "^READY$") {
 } else {
     Write-Host "  FAILED: $foundationResult" -ForegroundColor Red
     $errors++
+    $dbCheckPassed = $false
 }
 
 Write-Host "`n[5] Checking assurance and backup verification..." -ForegroundColor Yellow
@@ -124,6 +142,7 @@ if ($assuranceResult -match "^READY$") {
 } else {
     Write-Host "  FAILED: $assuranceResult" -ForegroundColor Red
     $errors++
+    $assurancePassed = $false
 }
 $backupScript = Join-Path -Path $RepoRoot -ChildPath "scripts\backup_restore_verify.py"
 $backupResult = & $PythonExe $backupScript 2>&1
@@ -132,6 +151,7 @@ if ($backupResult -match "^READY$") {
 } else {
     Write-Host "  FAILED: $backupResult" -ForegroundColor Red
     $errors++
+    $backupRestorePassed = $false
 }
 
 Write-Host "`n[6] Checking TODO comments..." -ForegroundColor Yellow
@@ -146,6 +166,7 @@ foreach ($file in $pyFiles) {
             Write-Host ("  TODO: {0} line {1}" -f $relativePath, ($i + 1)) -ForegroundColor Red
             $errors++
             $todoFound = $true
+            $todoCheckPassed = $false
         }
     }
 }
@@ -158,6 +179,7 @@ if ($SkipPytest) {
     $pytestResult = & $PythonExe -m pytest -q 2>&1
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  OK: pytest passed" -ForegroundColor Green
+        $pytestPassed = $true
     } else {
         Write-Host "  FAILED: pytest failed" -ForegroundColor Red
         Write-Host "    $pytestResult" -ForegroundColor DarkRed
@@ -179,6 +201,7 @@ if ($SkipFrontend) {
             $lintResult = & npm run lint 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "  OK: frontend lint passed" -ForegroundColor Green
+                $frontendLintPassed = $true
             } else {
                 Write-Host "  FAILED: frontend lint failed" -ForegroundColor Red
                 Write-Host "    $lintResult" -ForegroundColor DarkRed
@@ -188,6 +211,7 @@ if ($SkipFrontend) {
             $buildResult = & npm run build 2>&1
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "  OK: frontend build passed" -ForegroundColor Green
+                $frontendBuildPassed = $true
             } else {
                 Write-Host "  FAILED: frontend build failed" -ForegroundColor Red
                 Write-Host "    $buildResult" -ForegroundColor DarkRed
@@ -212,6 +236,7 @@ if ($SkipCloneVerify) {
         $cloneResult = & $cloneVerifyScript 2>&1
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  OK: clone verification passed" -ForegroundColor Green
+            $cloneVerifyPassed = $true
         } else {
             Write-Host "  FAILED: clone verification failed" -ForegroundColor Red
             Write-Host "    $cloneResult" -ForegroundColor DarkRed
@@ -219,6 +244,41 @@ if ($SkipCloneVerify) {
         }
         Set-Location -LiteralPath $RepoRoot
     }
+}
+
+Write-Host "`n[10] Writing release rehearsal evidence..." -ForegroundColor Yellow
+$verificationEnd = [datetime]::UtcNow
+$reportPath = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\rehearsal-" + $verificationEnd.ToString("yyyyMMdd-HHmmss") + ".json")
+$reportScript = Join-Path -Path $RepoRoot -ChildPath "scripts\write_rehearsal_report.py"
+$reportArgs = @(
+    $reportScript,
+    "--repo-root", $RepoRoot,
+    "--output", $reportPath,
+    "--errors", "$errors",
+    "--start-iso", $verificationStart.ToString("o"),
+    "--end-iso", $verificationEnd.ToString("o")
+)
+if ($SkipPytest) { $reportArgs += "--skip-pytest" }
+if ($SkipFrontend) { $reportArgs += "--skip-frontend" }
+if ($SkipCloneVerify) { $reportArgs += "--skip-clone-verify" }
+if ($pytestPassed) { $reportArgs += "--pytest-passed" }
+if ($frontendLintPassed) { $reportArgs += "--frontend-lint-passed" }
+if ($frontendBuildPassed) { $reportArgs += "--frontend-build-passed" }
+if ($cloneVerifyPassed) { $reportArgs += "--clone-verify-passed" }
+if ($dbCheckPassed) { $reportArgs += "--db-check-passed" }
+if ($backupRestorePassed) { $reportArgs += "--backup-restore-passed" }
+if ($assurancePassed) { $reportArgs += "--assurance-passed" }
+if ($importsPassed) { $reportArgs += "--imports-passed" }
+if ($criticalFilesPassed) { $reportArgs += "--critical-files-passed" }
+if ($todoCheckPassed) { $reportArgs += "--todo-check-passed" }
+
+$reportResult = & $PythonExe @reportArgs 2>&1
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "  OK: rehearsal report written to $reportPath" -ForegroundColor Green
+} else {
+    Write-Host "  FAILED: unable to write rehearsal report" -ForegroundColor Red
+    Write-Host "    $reportResult" -ForegroundColor DarkRed
+    $errors++
 }
 
 Write-Host "`n========================================" -ForegroundColor Cyan
