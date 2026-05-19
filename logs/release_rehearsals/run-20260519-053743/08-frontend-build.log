@@ -1,0 +1,16 @@
+
+> dorjea-dashboard@0.1.0 build
+> node scripts/next-build.cjs
+
+▲ Next.js 16.2.3 (webpack)
+
+  Creating an optimized production build ...
+
+> Build error occurred
+Error: spawn EPERM
+    at ignore-listed frames {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'spawn'
+}
+
