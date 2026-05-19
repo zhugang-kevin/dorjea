@@ -3,7 +3,8 @@ param(
     [switch]$SkipPytest,
     [switch]$SkipFrontend,
     [switch]$SkipCloneVerify,
-    [switch]$StrictFrontend
+    [switch]$StrictFrontend,
+    [switch]$ReleaseCandidate
 )
 
 $RepoRoot = Split-Path -Parent $PSScriptRoot
@@ -21,6 +22,17 @@ $frontendLintPassed = $false
 $frontendBuildPassed = $false
 $cloneVerifyPassed = $false
 $apiHealthPassed = $false
+$runStamp = $verificationStart.ToString("yyyyMMdd-HHmmss")
+$runLogDir = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\run-" + $runStamp)
+New-Item -ItemType Directory -Path $runLogDir -Force | Out-Null
+
+if ($ReleaseCandidate) {
+    $StrictFrontend = $true
+    if ($SkipPytest -or $SkipFrontend -or $SkipCloneVerify) {
+        Write-Host "ReleaseCandidate mode forbids skip flags. Remove SkipPytest/SkipFrontend/SkipCloneVerify." -ForegroundColor Red
+        exit 1
+    }
+}
 $WindowsVenvPython = Join-Path $RepoRoot "venv\Scripts\python.exe"
 $LinuxVenvPython = Join-Path $RepoRoot "venv\bin\python"
 if (Test-Path -LiteralPath $WindowsVenvPython) {
@@ -179,6 +191,7 @@ if ($SkipPytest) {
     Write-Host "  SKIP: pytest (requested)" -ForegroundColor Yellow
 } else {
     $pytestResult = & $PythonExe -m pytest -q 2>&1
+    Set-Content -LiteralPath (Join-Path $runLogDir "07-pytest.log") -Value ($pytestResult | Out-String) -Encoding UTF8
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  OK: pytest passed" -ForegroundColor Green
         $pytestPassed = $true
@@ -205,6 +218,7 @@ if ($SkipFrontend) {
         Push-Location -LiteralPath $frontendPath
         try {
             $lintResult = & npm run lint 2>&1
+            Set-Content -LiteralPath (Join-Path $runLogDir "08-frontend-lint.log") -Value ($lintResult | Out-String) -Encoding UTF8
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "  OK: frontend lint passed" -ForegroundColor Green
                 $frontendLintPassed = $true
@@ -215,6 +229,7 @@ if ($SkipFrontend) {
             }
 
             $buildResult = & npm run build 2>&1
+            Set-Content -LiteralPath (Join-Path $runLogDir "08-frontend-build.log") -Value ($buildResult | Out-String) -Encoding UTF8
             if ($LASTEXITCODE -eq 0) {
                 Write-Host "  OK: frontend build passed" -ForegroundColor Green
                 $frontendBuildPassed = $true
@@ -244,6 +259,7 @@ else:
     raise SystemExit(1)
 "@
     $healthResult = $healthScript | & $PythonExe - 2>&1
+    Set-Content -LiteralPath (Join-Path $runLogDir "09-health-probe.log") -Value ($healthResult | Out-String) -Encoding UTF8
     if ($LASTEXITCODE -eq 0) {
         Write-Host "  OK: /health returned valid response" -ForegroundColor Green
         $apiHealthPassed = $true
@@ -269,6 +285,7 @@ if ($SkipCloneVerify) {
         $errors++
     } else {
         $cloneResult = & $cloneVerifyScript 2>&1
+        Set-Content -LiteralPath (Join-Path $runLogDir "10-clone-verify.log") -Value ($cloneResult | Out-String) -Encoding UTF8
         if ($LASTEXITCODE -eq 0) {
             Write-Host "  OK: clone verification passed" -ForegroundColor Green
             $cloneVerifyPassed = $true
@@ -309,6 +326,7 @@ if ($criticalFilesPassed) { $reportArgs += "--critical-files-passed" }
 if ($todoCheckPassed) { $reportArgs += "--todo-check-passed" }
 
 $reportResult = & $PythonExe @reportArgs 2>&1
+Set-Content -LiteralPath (Join-Path $runLogDir "11-report-generator.log") -Value ($reportResult | Out-String) -Encoding UTF8
 if ($LASTEXITCODE -eq 0) {
     Write-Host "  OK: rehearsal report written to $reportPath" -ForegroundColor Green
 } else {
@@ -316,6 +334,15 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "    $reportResult" -ForegroundColor DarkRed
     $errors++
 }
+
+Set-Content -LiteralPath (Join-Path $runLogDir "01-critical-files.log") -Value ("critical_files_passed=" + $criticalFilesPassed) -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $runLogDir "03-imports.log") -Value ("imports_passed=" + $importsPassed) -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $runLogDir "04-database.log") -Value ("db_check_passed=" + $dbCheckPassed) -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $runLogDir "05-assurance-backup.log") -Value (
+    "assurance_passed=" + $assurancePassed + [Environment]::NewLine +
+    "backup_restore_passed=" + $backupRestorePassed
+) -Encoding UTF8
+Set-Content -LiteralPath (Join-Path $runLogDir "06-todo-scan.log") -Value ("todo_check_passed=" + $todoCheckPassed) -Encoding UTF8
 
 Write-Host "`n========================================" -ForegroundColor Cyan
 if ($errors -eq 0) { Write-Host "Verification passed - 0 errors" -ForegroundColor Green }
