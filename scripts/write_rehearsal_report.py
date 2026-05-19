@@ -48,6 +48,7 @@ def main() -> int:
     parser.add_argument("--critical-files-passed", action="store_true")
     parser.add_argument("--todo-check-passed", action="store_true")
     parser.add_argument("--failure-cause", default="", help="Optional normalized failure cause code.")
+    parser.add_argument("--sandbox-bypass-applied", action="store_true")
     args = parser.parse_args()
 
     repo_root = Path(args.repo_root).resolve()
@@ -90,6 +91,7 @@ def main() -> int:
             "duration_seconds": int(duration.total_seconds()),
             "errors": args.errors,
             "failure_cause": args.failure_cause or "",
+            "sandbox_bypass_applied": args.sandbox_bypass_applied,
         },
         "hard_gates": {
             "backend_verification": {"status": _status(gate_backend_verify)},

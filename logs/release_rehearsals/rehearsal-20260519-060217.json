@@ -1,0 +1,51 @@
+{
+  "generated_at": "2026-05-19T06:02:17.611740Z",
+  "date": "2026-05-19",
+  "owner": "Codex",
+  "branch": "master",
+  "commit": "4a669e5",
+  "environment": "local",
+  "mode": "release_candidate",
+  "summary": {
+    "result": "FAIL",
+    "start_time": "2026-05-19T05:57:30.5885990Z",
+    "end_time": "2026-05-19T06:02:17.3641408Z",
+    "duration_seconds": 286,
+    "errors": 1,
+    "failure_cause": "sandbox_eprem",
+    "sandbox_bypass_applied": false
+  },
+  "hard_gates": {
+    "backend_verification": {
+      "status": "PASS"
+    },
+    "pytest": {
+      "status": "PASS",
+      "skipped": false
+    },
+    "frontend": {
+      "status": "FAIL",
+      "skipped": false,
+      "lint_passed": true,
+      "build_passed": false
+    },
+    "clone_verification": {
+      "status": "PASS",
+      "skipped": false
+    },
+    "api_health": {
+      "status": "PASS"
+    },
+    "backup_restore": {
+      "status": "PASS"
+    }
+  },
+  "checks": {
+    "critical_files": true,
+    "imports": true,
+    "database": true,
+    "assurance": true,
+    "todo_scan": true
+  },
+  "decision": "NO-GO"
+}
