@@ -314,7 +314,7 @@ if ($SkipCloneVerify) {
 
 Write-Host "`n[11] Writing release rehearsal evidence..." -ForegroundColor Yellow
 $verificationEnd = [datetime]::UtcNow
-$reportPath = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\rehearsal-" + $verificationEnd.ToString("yyyyMMdd-HHmmss") + ".json")
+$reportPath = Join-Path -Path $RepoRoot -ChildPath ("logs\release_rehearsals\rehearsal-" + $verificationEnd.ToString("yyyyMMdd-HHmmss-fff") + ".json")
 $reportScript = Join-Path -Path $RepoRoot -ChildPath "scripts\write_rehearsal_report.py"
 $reportArgs = @(
     $reportScript,

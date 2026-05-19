@@ -1,0 +1,3 @@
+allow_sandbox_frontend_bypass=False
+sandbox_bypass_applied=False
+failure_cause=sandbox_eprem

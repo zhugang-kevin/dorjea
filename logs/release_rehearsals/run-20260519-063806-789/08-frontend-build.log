@@ -1,0 +1,32 @@
+
+> dorjea-dashboard@0.1.0 build
+> node scripts/next-build.cjs
+
+▲ Next.js 16.2.3 (webpack)
+- Experiments (use with caution):
+  · cpus: 1
+  · staticGenerationMaxConcurrency: 1
+  · staticGenerationMinPagesPerWorker: 1000
+  ⨯ webpackBuildWorker
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 19.5s
+  Skipping validation of types
+
+  We detected TypeScript in your project and reconfigured your tsconfig.json file for you. Strict-mode is set to false by default.
+  The following suggested values were added to your tsconfig.json. These values can be changed to fit your project's needs:
+
+  	- include was updated to add '.next-build-1779172751492/types/**/*.ts'
+  	- include was updated to add '.next-build-1779172751492/dev/types/**/*.ts'
+
+  Finished TypeScript config validation in 7ms ...
+  Collecting page data using 1 worker ...
+
+> Build error occurred
+Error: spawn EPERM
+    at ignore-listed frames {
+  errno: -4048,
+  code: 'EPERM',
+  syscall: 'spawn'
+}
+
