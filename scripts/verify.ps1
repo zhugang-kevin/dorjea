@@ -335,6 +335,24 @@ if ($LASTEXITCODE -eq 0) {
     $errors++
 }
 
+Write-Host "  Generating markdown summary..." -ForegroundColor Yellow
+$summaryPath = $reportPath -replace '\.json$', '.md'
+$summaryScript = Join-Path -Path $RepoRoot -ChildPath "scripts\render_rehearsal_summary.py"
+$summaryArgs = @(
+    $summaryScript,
+    "--input", $reportPath,
+    "--output", $summaryPath
+)
+$summaryResult = & $PythonExe @summaryArgs 2>&1
+Set-Content -LiteralPath (Join-Path $runLogDir "12-summary-generator.log") -Value ($summaryResult | Out-String) -Encoding UTF8
+if ($LASTEXITCODE -eq 0) {
+    Write-Host "  OK: rehearsal markdown summary written to $summaryPath" -ForegroundColor Green
+} else {
+    Write-Host "  FAILED: unable to write rehearsal markdown summary" -ForegroundColor Red
+    Write-Host "    $summaryResult" -ForegroundColor DarkRed
+    $errors++
+}
+
 Set-Content -LiteralPath (Join-Path $runLogDir "01-critical-files.log") -Value ("critical_files_passed=" + $criticalFilesPassed) -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $runLogDir "03-imports.log") -Value ("imports_passed=" + $importsPassed) -Encoding UTF8
 Set-Content -LiteralPath (Join-Path $runLogDir "04-database.log") -Value ("db_check_passed=" + $dbCheckPassed) -Encoding UTF8
